@@ -31,7 +31,7 @@
 - 🗺️ Real-time order tracking
 
 <p align="center">
-  <img src="assets\background.jpg" alt="OiiPuwali Demo" width="300"/>
+  <img src="https://your-app-demo.gif" alt="OiiPuwali Demo" width="300"/>
 </p>
 
 ## 📦 Installation
