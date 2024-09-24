@@ -39,3 +39,4 @@ android/keystores/release.keystore
 
 credentials.json
 credentials\android\keystore.jks
+package-lock.json
