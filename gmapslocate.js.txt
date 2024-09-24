@@ -1,0 +1,217 @@
+import React, { useState, useEffect } from "react";
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Platform,
+} from "react-native";
+import * as Location from "expo-location";
+import { Octicons } from "@expo/vector-icons";
+import { supabase } from "../supabase";
+import MapView, { Marker } from 'react-native-maps';
+
+const LocationScreen = ({ route, navigation }) => {
+  const { uid } = route?.params || {};
+  const [locationPermission, setLocationPermission] = useState(null);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [address, setAddress] = useState("");
+  const [name, setName] = useState("");
+  const [landmark, setLandmark] = useState("");
+  const [pincode, setPincode] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      setLocationPermission(status === 'granted');
+
+      if (status === 'granted') {
+        await getCurrentLocation();
+      }
+    })();
+  }, []);
+
+  const getCurrentLocation = async () => {
+    try {
+      const location = await Location.getCurrentPositionAsync({});
+      setCurrentLocation(location.coords);
+
+      const address = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (address[0]) {
+        const formattedAddress = `${address[0].name}, ${address[0].street}, ${address[0].city}, ${address[0].region} ${address[0].postalCode}`;
+        setAddress(formattedAddress);
+        setPincode(address[0].postalCode || "");
+      }
+    } catch (error) {
+      console.error("Error getting location:", error);
+      Alert.alert("Error", "Unable to fetch your location. Please enter it manually.");
+    }
+  };
+
+  const saveUserDetails = async () => {
+    if (!name || !address || !pincode) {
+      Alert.alert("Error", "Please fill in all required fields.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .upsert({ 
+          user_id: uid, 
+          name, 
+          address, 
+          pincode, 
+          landmark,
+          latitude: currentLocation?.latitude,
+          longitude: currentLocation?.longitude
+        });
+
+      if (error) throw error;
+      
+      navigation.navigate("HomeScreen");
+    } catch (error) {
+      console.error("Error saving user details:", error);
+      Alert.alert("Error", "There was an issue saving your details.");
+    }
+  };
+
+  const handleMapPress = (event) => {
+    setCurrentLocation(event.nativeEvent.coordinate);
+  };
+
+  if (locationPermission === null) {
+    return (
+      <View style={styles.container}>
+        <Text>Requesting location permission...</Text>
+      </View>
+    );
+  }
+
+  if (locationPermission === false) {
+    return (
+      <View style={styles.container}>
+        <Text>Location permission is required to use this app.</Text>
+        <TouchableOpacity style={styles.button} onPress={() => navigation.goBack()}>
+          <Text style={styles.buttonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Octicons name="location" size={24} color="#7C3AED" />
+        <Text style={styles.headerText}>Set Your Location</Text>
+      </View>
+
+      {currentLocation && (
+        <MapView
+          style={styles.map}
+          initialRegion={{
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          }}
+          onPress={handleMapPress}
+        >
+          <Marker
+            coordinate={{
+              latitude: currentLocation.latitude,
+              longitude: currentLocation.longitude,
+            }}
+          />
+        </MapView>
+      )}
+
+      <View style={styles.form}>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Name"
+          style={styles.input}
+        />
+        <TextInput
+          value={address}
+          onChangeText={setAddress}
+          placeholder="Address"
+          style={styles.input}
+          multiline
+        />
+        <TextInput
+          value={landmark}
+          onChangeText={setLandmark}
+          placeholder="Landmark (optional)"
+          style={styles.input}
+        />
+        <TextInput
+          value={pincode}
+          onChangeText={setPincode}
+          placeholder="Pincode"
+          keyboardType="numeric"
+          style={styles.input}
+        />
+        <TouchableOpacity onPress={saveUserDetails} style={styles.button}>
+          <Text style={styles.buttonText}>Save Location</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#F3F4F6",
+  },
+  headerText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#7C3AED",
+    marginLeft: 10,
+  },
+  map: {
+    height: 200,
+    marginVertical: 10,
+  },
+  form: {
+    padding: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    fontSize: 16,
+    backgroundColor: "#F3F4F6",
+  },
+  button: {
+    backgroundColor: "#7C3AED",
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+});
+
+export default LocationScreen;
