@@ -7,6 +7,8 @@ export const CartSlice = createSlice({
     cookingInstructions: "",
     deliveryInstructions: "",
     sendCutlery: true,
+    coupon: null, 
+    coupons: [], 
   },
   reducers: {
     addToCart: (state, action) => {
@@ -17,7 +19,10 @@ export const CartSlice = createSlice({
       if (itemPresent) {
         itemPresent.quantity++;
       } else {
-        state.cart.push({ ...action.payload, quantity: 1 });
+        state.cart.push({ 
+          ...action.payload, 
+          quantity: 1,
+        });
       }
     },
     removeFromCart: (state, action) => {
@@ -60,6 +65,15 @@ export const CartSlice = createSlice({
     toggleCutlery: (state) => {
       state.sendCutlery = !state.sendCutlery;
     },
+    applyCoupon: (state, action) => {
+      state.coupon = action.payload;
+    },
+    removeCoupon: (state) => {
+      state.coupon = null;
+    },
+    setCoupons: (state, action) => {
+      state.coupons = action.payload;
+    },
   },
 });
 
@@ -71,6 +85,9 @@ export const {
   cleanCart,
   updateOrderInstructions,
   toggleCutlery,
+  applyCoupon, 
+  removeCoupon, 
+  setCoupons, 
 } = CartSlice.actions;
 
 export default CartSlice.reducer;

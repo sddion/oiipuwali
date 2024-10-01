@@ -10,8 +10,15 @@ import LocationScreen from "./screens/LocationScreen";
 import LoadingScreen from "./components/LoadingScreen";
 import LoginScreen from "./screens/LoginScreen";
 import CartScreen from "./screens/CartScreen";
+import Coupon from "./components/Coupon";
+import Users from "./components/Users";
+import UserComponent from "./components/UserComponent";
 import CheckoutScreen from "./screens/CheckoutScreen";
 import { LocationProvider } from './context/LocationContext';
+import { Provider } from 'react-redux';
+import { store } from './redux/store';
+import SavedAddresses from "./components/SavedAddresses";
+import DeliveryTrackingScreen from "./screens/deliveryTrackingScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -34,7 +41,8 @@ export default function App() {
   }
 
   return (
-    <LocationProvider> {}
+    <Provider store={store}>
+    <LocationProvider> 
       <NavigationContainer>
         <Stack.Navigator initialRouteName={session ? "Home" : "LoginScreen"}>
           <Stack.Screen
@@ -51,6 +59,22 @@ export default function App() {
             name="Home"
             component={HomeScreen}
             options={{ headerShown: false }}
+          />
+           <Stack.Screen
+            name="Users"
+            component={Users}
+            options={{
+              title: "",
+              headerShadowVisible: false,
+            }}
+          />
+           <Stack.Screen
+            name="UserComponent"
+            component={UserComponent}
+            options={{
+              title: "",
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="Restaurant"
@@ -69,11 +93,27 @@ export default function App() {
             options={{
               title: "",
               headerStyle: {
-                backgroundColor: "#FFFFFF",
+                backgroundColor: "#F4F6FB",
               },
               headerTitleStyle: {
                 fontWeight: "bold",
               },
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="Coupon"
+            component={Coupon}
+            options={{
+              title: "",
+              headerShown: false,
+              headerStyle: {
+                backgroundColor: "#F4F6FB",
+              },
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerShadowVisible: false,
             }}
           />
           <Stack.Screen
@@ -82,15 +122,45 @@ export default function App() {
             options={{
               title: "",
               headerStyle: {
-                backgroundColor: "#FFFFFF",
+                backgroundColor: "#F4F6FB",
               },
               headerTitleStyle: {
                 fontWeight: "bold",
               },
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="SavedAddresses"
+            component={SavedAddresses}
+            options={{
+              title: "Saved Addresses",
+              headerStyle: {
+                backgroundColor: "#F4F6FB",
+              },
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="DeliveryTracking"
+            component={DeliveryTrackingScreen}
+            options={{
+              title: "",
+              headerStyle: {
+                backgroundColor: "#F4F6FB",
+              },
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerShadowVisible: false,
             }}
           />
         </Stack.Navigator>
       </NavigationContainer>
     </LocationProvider>
+    </Provider>
   );
 }

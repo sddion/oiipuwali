@@ -12,7 +12,16 @@
           "package_name": "com.userapp.oiipuwali"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "390095114990-gonl47hn8spoaq2d3crogia3q31rttdt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.userapp.oiipuwali",
+            "certificate_hash": "2489888a10e7e7f8e4f9002f17db773810a79e12"
+          }
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDGaWPi09jmcDKxuhb_m_05zrv4dzosM7w"

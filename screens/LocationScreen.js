@@ -1,229 +1,214 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext } from 'react';
 import {
-  Alert,
   StyleSheet,
   Text,
   View,
   ScrollView,
   TextInput,
   TouchableOpacity,
-} from "react-native";
-import * as Location from "expo-location";
-import { Octicons } from "@expo/vector-icons";
-import { supabase } from "../supabase";
+  Alert,
+  Dimensions,
+} from 'react-native';
+import * as Location from 'expo-location';
+import { supabase } from '../supabase';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
-import axios from 'axios';
-import { LocationContext } from '../context/LocationContext'; 
+import { LocationContext } from '../context/LocationContext';
 
-const GOOGLE_MAPS_API_KEY = 'AAIzaSyBZ_jnKn5U_saPuBcYqn8TLZo_VNcsLRn4'; 
+const { height } = Dimensions.get('window');
 
 const LocationScreen = ({ route, navigation }) => {
-  const { uid } = route?.params || {};
-  const { userLocation, setUserLocation } = useContext(LocationContext); // Get userLocation and setUserLocation from context
-  const [locationPermission, setLocationPermission] = useState(null);
-  const [address, setAddress] = useState("");
-  const [name, setName] = useState("");
-  const [landmark, setLandmark] = useState("");
-  const [pincode, setPincode] = useState("");
-  const [pincodeValid, setPincodeValid] = useState(true);
+  const { editAddress } = route.params || {};
+  const { userLocation, setUserLocation } = useContext(LocationContext);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [address, setAddress] = useState(editAddress?.address || '');
+  const [houseNumber, setHouseNumber] = useState(editAddress?.house_number || '');
+  const [floor, setFloor] = useState(editAddress?.floor || '');
+  const [howToReach, setHowToReach] = useState(editAddress?.how_to_reach || '');
+  const [locationType, setLocationType] = useState(editAddress?.location_type || 'Home');
+  const [ loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      setLocationPermission(status === 'granted');
-
-      if (status === 'granted' && !userLocation) {
-        await getCurrentLocation();
-      }
-    })();
-  }, [userLocation]);
+    getCurrentLocation();
+  }, []);
 
   const getCurrentLocation = async () => {
-    try {
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-      setUserLocation({ latitude, longitude }); // Update userLocation in context
-      await reverseGeocode(latitude, longitude);
-    } catch (error) {
-      console.error("Error getting location:", error);
-      Alert.alert("Error", "Unable to fetch your location. Please enter it manually.");
-    }
-  };
-
-  const reverseGeocode = async (latitude, longitude) => {
-    try {
-      const response = await axios.get(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
-      );
-
-      if (response.data.results.length > 0) {
-        const result = response.data.results[0];
-        setAddress(result.formatted_address);
-
-        // Extract pincode
-        const pincodeComponent = result.address_components.find(
-          component => component.types.includes("postal_code")
-        );
-        if (pincodeComponent) {
-          setPincode(pincodeComponent.long_name);
-          validatePincode(pincodeComponent.long_name);
-        }
-      }
-    } catch (error) {
-      console.error("Error in reverse geocoding:", error);
-    }
-  };
-
-  const validatePincode = (code) => {
-    const pincodeRegex = /^[1-9][0-9]{5}$/;
-    const isValid = pincodeRegex.test(code);
-    setPincodeValid(isValid);
-    return isValid;
-  };
-
-  const saveUserDetails = async () => {
-    if (!name || !address || !pincode) {
-      Alert.alert("Error", "Please fill in all required fields.");
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission to access location was denied');
       return;
     }
 
-    if (!pincodeValid) {
-      Alert.alert("Error", "Please enter a valid 6-digit Indian pincode.");
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('users')
-        .upsert({ 
-          user_id: uid, 
-          name, 
-          address, 
-          pincode, 
-          landmark,
-          latitude: userLocation?.latitude,
-          longitude: userLocation?.longitude
-        });
-
-      if (error) throw error;
-      
-      navigation.navigate("HomeScreen");
-    } catch (error) {
-      console.error("Error saving user details:", error);
-      Alert.alert("Error", "There was an issue saving your details.");
-    }
+    let location = await Location.getCurrentPositionAsync({});
+    setUserLocation(location.coords);
+    setLoading(false);
   };
 
   const handleMapPress = async (event) => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
-    setUserLocation({ latitude, longitude }); // Update userLocation in context
-    await reverseGeocode(latitude, longitude);
+    setUserLocation({ latitude, longitude });
+
+    // Fetch the address details from Google Maps API
+    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyBZ_jnKn5U_saPuBcYqn8TLZo_VNcsLRn4`);
+    const data = await response.json();
+
+    if (data.results && data.results.length > 0) {
+      setAddress(data.results[0].formatted_address);
+    }
   };
 
-  if (locationPermission === null) {
-    return (
-      <View style={styles.container}>
-        <Text>Requesting location permission...</Text>
-      </View>
-    );
-  }
+  const handleConfirmLocation = () => {
+    setShowAddressForm(true);
+  };
 
-  if (locationPermission === false) {
-    return (
-      <View style={styles.container}>
-        <Text>Location permission is required to use this app.</Text>
-        <TouchableOpacity style={styles.button} onPress={() => navigation.goBack()}>
-          <Text style={styles.buttonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const handleSaveAddress = async () => {
+    if (!address || !houseNumber) {
+      Alert.alert('Error', 'Please fill in all required fields.');
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const newAddress = {
+        id: editAddress ? editAddress.id : Date.now().toString(),
+        address,
+        house_number: houseNumber,
+        floor,
+        how_to_reach: howToReach,
+        location_type: locationType,
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude
+      };
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('saved_addresses')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      let savedAddresses = data.saved_addresses || [];
+      if (!Array.isArray(savedAddresses)) {
+        savedAddresses = [];
+      }
+
+      if (editAddress) {
+        // Update existing address
+        const index = savedAddresses.findIndex(addr => addr.id === editAddress.id);
+        if (index !== -1) {
+          savedAddresses[index] = newAddress;
+        }
+      } else {
+        // Add new address
+        if (savedAddresses.length >= 3) {
+          Alert.alert('Limit Reached', 'You can only save up to 3 addresses. Please delete an existing address to add a new one.');
+          return;
+        }
+        savedAddresses.push(newAddress);
+      }
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ saved_addresses: savedAddresses })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      Alert.alert('Success', `Address ${editAddress ? 'updated' : 'saved'} successfully`);
+      navigation.navigate('SavedAddresses');
+    } catch (error) {
+      console.error('Error saving address:', error);
+      Alert.alert('Error', 'There was an issue saving your address. Please try again.');
+    }
+  };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Octicons name="location" size={24} color="#7C3AED" />
-        <Text style={styles.headerText}>Set Your Location</Text>
-      </View>
-
-      {userLocation && (
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.mapContainer}>
         <MapView
-          provider={PROVIDER_GOOGLE} 
+          provider={PROVIDER_GOOGLE}
           style={styles.map}
           initialRegion={{
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
+            latitude: userLocation?.latitude || 0,
+            longitude: userLocation?.longitude || 0,
             latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
+            longitudeDelta: 0.0421
           }}
           onPress={handleMapPress}
+          showsUserLocation={true}
         >
-          <Marker
-            coordinate={{
-              latitude: userLocation.latitude,
-              longitude: userLocation.longitude,
-            }}
-          />
+          {userLocation && (
+            <Marker
+              coordinate={{
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude
+              }}
+              description={address || 'Selected Location'}
+            />
+          )}
         </MapView>
-      )}
+      </View>
 
-      <View style={styles.form}>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="Name"
-          style={styles.input}
-        />
-        <GooglePlacesAutocomplete
-          placeholder='Search for address'
-          onPress={(data, details = null) => {
-            setAddress(data.description);
-            setUserLocation({
-              latitude: details.geometry.location.lat,
-              longitude: details.geometry.location.lng,
-            });
-            // Extract pincode from address components
-            const pincodeComponent = details.address_components.find(
-              component => component.types.includes("postal_code")
-            );
-            if (pincodeComponent) {
-              setPincode(pincodeComponent.long_name);
-              validatePincode(pincodeComponent.long_name);
-            }
-          }}
-          query={{
-            key: GOOGLE_MAPS_API_KEY,
-            language: 'en',
-            components: 'country:in',
-          }}
-          styles={{
-            textInputContainer: styles.autocompleteContainer,
-            textInput: styles.autocompleteInput,
-          }}
-        />
-        <TextInput
-          value={landmark}
-          onChangeText={setLandmark}
-          placeholder="Landmark (optional)"
-          style={styles.input}
-        />
-        <TextInput
-          value={pincode}
-          onChangeText={(text) => {
-            setPincode(text);
-            validatePincode(text);
-          }}
-          placeholder="Pincode"
-          keyboardType="numeric"
-          style={[styles.input, !pincodeValid && styles.invalidInput]}
-        />
-        {!pincodeValid && (
-          <Text style={styles.errorText}>Please enter a valid 6-digit Indian pincode</Text>
+      <View style={styles.formWrapper}>
+        {!showAddressForm ? (
+          <View style={styles.locationConfirmation}>
+            <Text style={styles.locationTitle}>Select your location</Text>
+            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmLocation}>
+              <Text style={styles.confirmButtonText}>Confirm Location</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.addressForm}>
+            <Text style={styles.formTitle}>Enter address details</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="House no. / Flat no / Building"
+              value={houseNumber}
+              onChangeText={setHouseNumber}
+              placeholderTextColor="#666"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Address"
+              value={address}
+              onChangeText={setAddress}
+              placeholderTextColor="#666"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Floor (optional)"
+              value={floor}
+              onChangeText={setFloor}
+              placeholderTextColor="#666"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="How to reach (optional)"
+              value={howToReach}
+              onChangeText={setHowToReach}
+              placeholderTextColor="#666"
+            />
+            <Text style={styles.tagText}>Tags</Text>
+            <View style={styles.tagContainer}>
+              {['Home', 'Work', 'Office', 'Other'].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[styles.tagButton, locationType === type && styles.activeTagButton]}
+                  onPress={() => setLocationType(type)}
+                >
+                  <Text style={[styles.tagButtonText, locationType === type && styles.activeTagButtonText]}>
+                    {type}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSaveAddress}>
+              <Text style={styles.saveButtonText}>Save Address</Text>
+            </TouchableOpacity>
+          </View>
         )}
-        <TouchableOpacity onPress={saveUserDetails} style={styles.button}>
-          <Text style={styles.buttonText}>Save Location</Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -232,63 +217,114 @@ const LocationScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#fff',
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#F3F4F6",
+  contentContainer: {
+    minHeight: height,
   },
-  headerText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#7C3AED",
-    marginLeft: 10,
+  mapContainer: {
+    height: 550,
   },
   map: {
-    height: 200,
-    marginVertical: 10,
+    ...StyleSheet.absoluteFillObject,
   },
-  form: {
+  formWrapper: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
+    marginTop: -20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  locationConfirmation: {
+    alignItems: 'center',
+  },
+  addressForm: {
+    alignItems: 'center',
+  },
+  locationTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#333',
+  },
+  formTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#333',
   },
   input: {
+    width: '100%',
     borderWidth: 1,
-    borderColor: "#D1D5DB",
+    borderColor: '#ddd',
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
     fontSize: 16,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: '#F3F4F6',
   },
-  invalidInput: {
-    borderColor: "red",
-  },
-  errorText: {
-    color: "red",
-    marginBottom: 15,
-  },
-  button: {
-    backgroundColor: "#7C3AED",
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  autocompleteContainer: {
-    marginBottom: 15,
-  },
-  autocompleteInput: {
+  tagText: {
     fontSize: 16,
-    backgroundColor: "#F3F4F6",
+    marginBottom: 10,
+    color: '#333',
+    alignSelf: 'flex-start',
+  },
+  tagContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    justifyContent: 'flex-start',
+    width: '100%',
+  },
+  tagButton: {
     borderWidth: 1,
-    borderColor: "#D1D5DB",
+    borderColor: '#ddd',
     borderRadius: 8,
+    padding: 10,
+    marginRight: 10,
+    backgroundColor: '#fff',
+  },
+  activeTagButton: {
+    backgroundColor: '#000',
+  },
+  tagButtonText: {
+    fontSize: 16,
+    color: '#000',
+  },
+  activeTagButtonText: {
+    color: '#fff',
+  },
+  confirmButton: {
+    width: '100%',
+    backgroundColor: '#000',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  saveButton: {
+    width: '100%',
+    backgroundColor: '#000',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

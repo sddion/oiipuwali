@@ -1,24 +1,46 @@
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View, Image, ScrollView } from "react-native";
-import React from "react";
 import { FontAwesome } from "@expo/vector-icons";
-import Coupon from "./Coupon";
-import { coupons } from "../assets/data/data";
+import { supabase } from "../supabase";
 
-const RestaurantHead = (props) => {
-  const { restaurant, cuisines, duration, distance, rating } = props;
+const RestaurantHead = ({ restaurantId, restaurant }) => {
+  const [localRestaurant, setLocalRestaurant] = useState(restaurant);
 
+  useEffect(() => {
+    if (!localRestaurant) {
+      fetchRestaurantData();
+    }
+  }, [restaurantId]);
+
+  const fetchRestaurantData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("restaurantdata")
+        .select("*")
+        .eq("id", restaurantId)
+        .single();
+
+      if (error) throw error;
+      setLocalRestaurant(data);
+    } catch (error) {
+      console.error("Error fetching restaurant data:", error);
+    }
+  };
+
+  if (!localRestaurant) {
+    return null; // or a loading indicator
+  }
+  
   return (
     <View style={styles.container}>
       <View style={styles.restaurantDetails}>
         <View style={styles.restaurantInfo}>
-          <Text style={styles.restaurantName}>{restaurant}</Text>
+          <Text style={styles.restaurantName}>{restaurant.restaurantname}</Text>
           <Text style={styles.cuisine}>
-            {cuisines.map((item) => {
-              return `${item}, `;
-            })}
+            {restaurant.restaurantdescription}
           </Text>
           <View style={styles.locationContainer}>
-            <Text style={styles.location}>Alkapuri, Vadodara</Text>
+            <Text style={styles.location}>{restaurant.restaurantaddress}</Text>
             <FontAwesome name="sort-down" size={14} style={styles.rightIcon} />
           </View>
           <View style={styles.timerContainer}>
@@ -26,18 +48,18 @@ const RestaurantHead = (props) => {
               source={require("../assets/images/time.png")}
               style={styles.timerImage}
             />
-            <Text style={styles.duration}>{duration} min</Text>
+            <Text style={styles.duration}>30 min</Text>
             <Text
               style={{ fontSize: 13, paddingHorizontal: 7, color: "lightgray" }}
             >
               |
             </Text>
-            <Text style={styles.distance}>{distance} km away</Text>
+            <Text style={styles.distance}>2 km away</Text>
           </View>
         </View>
         <View style={styles.ratingContainer}>
           <View style={styles.ratingTopContainer}>
-            <Text style={styles.rating}>{rating}</Text>
+            <Text style={styles.rating}>{restaurant.restaurantrating}</Text>
             <FontAwesome
               name="star"
               size={13}
@@ -46,28 +68,14 @@ const RestaurantHead = (props) => {
             />
           </View>
           <View style={styles.reviewsContainer}>
-            <Text style={styles.totalReviews}>25.2K</Text>
+            <Text style={styles.totalReviews}>{restaurant.restaurantreviews}</Text>
             <Text style={styles.reviews}>reviews</Text>
           </View>
         </View>
       </View>
-
-      {/* Coupons */}
-
-      <ScrollView
-        style={styles.couponList}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-      >
-        {coupons.map((item) => (
-          <Coupon key={item.id} offer={item.offer} code={item.code} />
-        ))}
-      </ScrollView>
     </View>
   );
 };
-
-export default RestaurantHead;
 
 const styles = StyleSheet.create({
   container: {
@@ -166,8 +174,6 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
     color: "#606060",
   },
-  couponList: {
-    flexDirection: "row",
-    marginTop: 10,
-  },
 });
+
+export default RestaurantHead;

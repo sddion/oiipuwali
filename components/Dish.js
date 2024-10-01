@@ -1,10 +1,14 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import React, { useState } from "react";
+import React from "react";
 import { Feather, MaterialCommunityIcons, Entypo } from "@expo/vector-icons";
+import { useSelector, useDispatch } from 'react-redux';
+import { addToCart, removeFromCart } from '../redux/CartReducer';
 
 const Dish = (props) => {
-  const [quantity, setQuantity] = useState(0);
+  const dispatch = useDispatch();
+  const cart = useSelector((state) => state.cart.cart);
   const {
+    id,
     dishName,
     dishImage,
     isBestSeller,
@@ -14,13 +18,15 @@ const Dish = (props) => {
     about,
     setIsDishModalOpen,
     setDishInfo,
-    setTotalOrderItems,
-    setTotalOrderAmount,
   } = props;
+
+  const cartItem = cart.find(item => item.id === id);
+  const quantity = cartItem ? cartItem.quantity : 0;
 
   const openDishModal = () => {
     setIsDishModalOpen(true);
     setDishInfo({
+      id,
       dishName,
       dishImage,
       isBestSeller,
@@ -28,20 +34,15 @@ const Dish = (props) => {
       reviews,
       price,
       quantity,
-      setQuantity,
     });
   };
 
   const addItem = () => {
-    setQuantity(quantity + 1);
-    setTotalOrderItems((prev) => prev + 1);
-    setTotalOrderAmount((prev) => prev + price);
+    dispatch(addToCart({ id, dishName, price, quantity: 1 }));
   };
 
   const deleteItem = () => {
-    setQuantity(quantity - 1);
-    setTotalOrderItems((prev) => prev - 1);
-    setTotalOrderAmount((prev) => prev - price);
+    dispatch(removeFromCart({ id }));
   };
 
   return (
@@ -59,63 +60,46 @@ const Dish = (props) => {
             </View>
           )}
         </View>
-        {/* dish name */}
         <Text style={styles.dishName}>{dishName}</Text>
         <View style={styles.ratingAndReviews}>
           <View style={styles.ratingContainer}>
-            {[1, 2, 3, 4, 5].map((item, index) => {
-              if (item <= rating) {
-                return (
-                  <Entypo name="star" size={14} color="#F5C033" key={index} />
-                );
-              } else {
-                return (
-                  <Entypo
-                    name="star-outlined"
-                    size={14}
-                    color="lightgray"
-                    key={index}
-                  />
-                );
-              }
-            })}
+            {[1, 2, 3, 4, 5].map((item, index) => (
+              <Entypo
+                key={index}
+                name={item <= rating ? "star" : "star-outlined"}
+                size={14}
+                color={item <= rating ? "#F5C033" : "lightgray"}
+              />
+            ))}
           </View>
           <Text style={styles.reviews}>{reviews} reviews</Text>
         </View>
-        {/* price */}
         <Text style={styles.dishPrice}>₹{price}</Text>
         <Text style={styles.aboutDish} numberOfLines={3}>
           {about}
         </Text>
       </View>
       <View style={styles.dishImageContainer}>
-        {/* dish image */}
         <Image
-          source={{
-            uri: dishImage,
-          }}
+          source={{ uri: dishImage }}
           style={styles.dishImage}
         />
-        {/* add button */}
         {quantity === 0 ? (
           <Pressable style={styles.btnContainer} onPress={addItem}>
             <Text style={styles.btnText}>add</Text>
             <Feather
               name="plus"
               size={13}
-              color="#E94657"
+              color="#f27e18"
               style={{ position: "absolute", right: 3, top: 3 }}
             />
           </Pressable>
         ) : (
           <View style={styles.quantityContainer}>
-            {/* add */}
             <Pressable style={styles.quantityBtn} onPress={deleteItem}>
               <Entypo name="minus" size={16} color="#fff" />
             </Pressable>
-            {/* quantity */}
             <Text style={styles.quantity}>{quantity}</Text>
-            {/* remove */}
             <Pressable style={styles.quantityBtn} onPress={addItem}>
               <Entypo name="plus" size={16} color="#fff" />
             </Pressable>
@@ -214,10 +198,10 @@ const styles = StyleSheet.create({
     left: 15,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E94657",
+    borderColor: "#f27e18",
   },
   btnText: {
-    color: "#E94657",
+    color: "#f27e18",
     fontWeight: "700",
     textTransform: "uppercase",
     fontSize: 17,
@@ -226,7 +210,7 @@ const styles = StyleSheet.create({
   quantityContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF6F7",
+    backgroundColor: "#292725",
     width: 115,
     borderRadius: 8,
     justifyContent: "space-between",
@@ -241,7 +225,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   quantity: {
-    color: "#fff",
+    color: "#f27e18",
     fontSize: 15,
     fontWeight: "600",
     marginHorizontal: 10,

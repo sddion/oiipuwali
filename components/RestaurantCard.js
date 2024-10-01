@@ -1,25 +1,17 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import React from "react";
-import {
-  FontAwesome,
-  MaterialCommunityIcons,
-  Feather,
-  Ionicons,
-} from "@expo/vector-icons";
+import { FontAwesome, Feather, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 const RestaurantCard = (props) => {
   const {
-    image,
-    restaurant,
-    duration,
-    distance,
-    bill,
-    rating,
-    discount,
-    isVeg,
-    totalOrder,
-    cuisines,
+    restaurantimage,
+    restaurantname,
+    restaurantrating,
+    restaurantreviews,
+    restaurantaddress,
+    restaurantcontact,
+    restaurantdescription,
   } = props;
 
   const navigation = useNavigation();
@@ -29,73 +21,41 @@ const RestaurantCard = (props) => {
       style={styles.container}
       onPress={() =>
         navigation.navigate("Restaurant", {
-          restaurant,
-          cuisines,
-          duration,
-          distance,
-          rating,
+          restaurantId: props.id,
+          restaurantname,
+          restaurantaddress,
+          restaurantrating,
+          restaurantcontact,
+          restaurantdescription,
         })
       }
     >
       <Image
         source={{
-          uri: image,
+          uri: restaurantimage,
         }}
         style={styles.image}
       />
-      {/* isVeg */}
-      {isVeg && (
-        <View style={styles.vegContainer}>
-          <MaterialCommunityIcons name="leaf" size={13} color="#fff" />
-          <Text style={styles.vegText}>pure veg RESTAURANT</Text>
-        </View>
-      )}
 
       {/* like */}
       <View style={styles.likeContainer}>
         <Feather name="heart" size={20} color="#FC7D86" />
       </View>
 
-      {/* distance and duration */}
-
-      <View style={styles.timerContainer}>
-        <Image
-          source={require("../assets/images/time.png")}
-          style={styles.timerImage}
-        />
-        <Text style={styles.duration}>{duration} min</Text>
-        <Text style={{ fontSize: 10, paddingHorizontal: 3 }}>|</Text>
-        <Text style={styles.distance}>{distance} km</Text>
-      </View>
-
-      {/* discount */}
-      <View style={styles.discountContainer}>
-        <MaterialCommunityIcons
-          name="brightness-percent"
-          size={12}
-          color="#fff"
-        />
-        <Text style={styles.discount}>{discount}% off</Text>
+      {/* rating */}
+      <View style={styles.ratingContainer}>
+        <Text style={styles.rating}>{restaurantrating}</Text>
+        <FontAwesome name="star" size={10} color="#fff" />
       </View>
 
       <View style={styles.restaurantInfo}>
         <View style={styles.restaurantDetails}>
           {/* restaurant name */}
-          <Text style={styles.restaurantName}>{restaurant}</Text>
-          {/* rating */}
-          <View style={styles.ratingContainer}>
-            {/* rating */}
-            <Text style={styles.rating}>{rating}</Text>
-            <FontAwesome name="star" size={10} color="#fff" />
-          </View>
+          <Text style={styles.restaurantName}>{restaurantname}</Text>
         </View>
         <View style={styles.cuisineDetails}>
-          <Text style={styles.cuisine}>
-            {cuisines.map((item) => {
-              return `${item}, `;
-            })}
-          </Text>
-          <Text style={styles.bill}>₹{bill} for one</Text>
+          <Text style={styles.cuisine}>{restaurantaddress}</Text>
+          <Text style={styles.bill}>{restaurantcontact}</Text>
         </View>
 
         {/* hr */}
@@ -103,13 +63,13 @@ const RestaurantCard = (props) => {
           style={{ height: 0.1, backgroundColor: "gray", marginVertical: 10 }}
         />
 
-        {/* total number of order placed so far */}
+        {/* total number of reviews */}
         <View style={styles.totalOrder}>
           <View style={styles.trendingIconContainer}>
             <Ionicons name="trending-up" size={9} color="#fff" />
           </View>
           <Text style={styles.orderPlaced}>
-            {totalOrder}+ order placed from here recently
+            {restaurantreviews} reviews | {restaurantdescription}
           </Text>
         </View>
       </View>
@@ -152,67 +112,23 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-  vegContainer: {
+  ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 7,
-    position: "absolute",
-    backgroundColor: "rgba(42, 147, 74, 0.9)",
-    width: "100%",
-    top: 0,
     justifyContent: "center",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  vegText: {
-    color: "#fff",
-    fontSize: 11,
-    marginLeft: 5,
-    textTransform: "uppercase",
-    fontWeight: "600",
-  },
-  timerContainer: {
-    backgroundColor: "#fff",
-    flexDirection: "row",
-    position: "absolute",
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 5,
-    right: 10,
-    top: 192,
-    alignItems: "center",
-  },
-  timerImage: {
-    width: 11,
-    height: 11,
-    marginRight: 3,
-  },
-  duration: {
-    fontSize: 10,
-    fontWeight: "500",
-  },
-  distance: {
-    fontSize: 10,
-    fontWeight: "500",
-  },
-  discountContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    backgroundColor: "#259547",
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 4,
     position: "absolute",
     top: 190,
-    left: -7,
-    backgroundColor: "#0059E4",
-    paddingHorizontal: 5,
-    paddingVertical: 3,
-    borderTopRightRadius: 7,
-    borderBottomRightRadius: 7,
+    right: 10,
   },
-  discount: {
+  rating: {
+    fontSize: 12,
     color: "#fff",
-    textTransform: "uppercase",
-    fontSize: 11,
-    fontWeight: "bold",
-    marginLeft: 4,
+    fontWeight: "600",
+    marginRight: 4,
   },
   restaurantInfo: {
     padding: 10,
@@ -226,21 +142,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "500",
     textTransform: "capitalize",
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#259547",
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  rating: {
-    fontSize: 12,
-    color: "#fff",
-    fontWeight: "600",
-    marginRight: 4,
   },
   cuisineDetails: {
     flexDirection: "row",

@@ -1,56 +1,40 @@
 import {
-  FlatList,
-  SafeAreaView,
-  StyleSheet,
-  View,
-  Text,
-  Pressable,
-  Modal,
+  FlatList, SafeAreaView, ActivityIndicator, StyleSheet, View, Text, Pressable, Modal,
 } from "react-native";
 import React, { useEffect, useState } from "react";
+import {
+  MaterialCommunityIcons, MaterialIcons, AntDesign, Entypo,
+} from "@expo/vector-icons";
+import { supabase } from '../supabase';
 import RestaurantHead from "../components/RestaurantHead";
 import DishCategory from "../components/DishCategory";
-import { restaurantMenu } from "../assets/data/data";
-import MenuFAB from "../components/MenuFAB";
-import { useRoute, useNavigation } from "@react-navigation/native";
-import {
-  MaterialCommunityIcons,
-  MaterialIcons,
-  AntDesign,
-  Entypo,
-} from "@expo/vector-icons";
 import MenuSearch from "../components/MenuSearch";
 import DishInfo from "../components/DishInfo";
+import { useSelector, useDispatch } from 'react-redux';
+import { addToCart } from '../redux/CartReducer';
 
-// veg or non-veg
-const FoodType = (props) => {
-  const { type } = props;
 
-  return (
-    <View style={styles.foodTypeContainer}>
-      <MaterialCommunityIcons
-        name="square-rounded"
-        size={23}
-        color={type === "veg" ? "#259547" : "#A95B41"}
-      />
-      <Text style={styles.foodTypeText}>
-        {type === "veg" ? "Veg" : "Non-veg"}
-      </Text>
-    </View>
-  );
-};
 
 // DishInfo modal buttons
 const AddItemBtns = (props) => {
+  const dispatch = useDispatch();
   const {
+    id,
     price,
-    quantity,
-    setQuantity,
     closeDishInfo,
-    setTotalOrderItems,
-    setTotalOrderAmount,
   } = props;
   const [thisQuantity, setThisQuantity] = useState(1);
+
+  const addToOrder = () => {
+    dispatch(addToCart({ 
+      id, 
+      price, 
+      quantity: thisQuantity, 
+      dishName: state.dishInfo.dishName, 
+      dishImage: state.dishInfo.dishImage 
+    }));
+    closeDishInfo();
+  };
 
   const addFoodItem = () => {
     if (thisQuantity >= 10) return;
@@ -60,14 +44,6 @@ const AddItemBtns = (props) => {
   const deleteFoodItem = () => {
     if (thisQuantity <= 1) return;
     setThisQuantity((prev) => prev - 1);
-  };
-
-  const addToOrder = () => {
-    setQuantity(quantity + thisQuantity);
-    setTotalOrderItems((prev) => prev + thisQuantity);
-    // total amount to order
-    setTotalOrderAmount((prev) => prev + thisQuantity * price);
-    closeDishInfo();
   };
 
   return (
@@ -96,9 +72,7 @@ const AddItemBtns = (props) => {
 };
 
 // bill component
-const ShowTotalBillAmount = (props) => {
-  const { totalOrderItems, totalOrderAmount } = props;
-
+const ShowTotalBillAmount = ({ totalOrderItems, totalOrderAmount, navigation, restaurantName, cartItems }) => {
   return (
     <View
       style={{
@@ -120,26 +94,81 @@ const ShowTotalBillAmount = (props) => {
           </Text>
         </View>
         {/* next */}
-        <View style={styles.nextContainer}>
-          <Text style={styles.nextText}>next</Text>
-          <MaterialIcons name="arrow-right" size={24} color="#fff" />
-        </View>
+        <Pressable 
+          onPress={() => navigation.navigate('Cart', { 
+            restaurantName: restaurantName,
+            cartItems: cartItems
+          })}
+        >
+          <View style={styles.nextContainer}>
+            <Text style={styles.nextText}>next</Text>
+            <MaterialIcons name="arrow-right" size={24} color="#fff" />
+          </View>
+        </Pressable>
       </Pressable>
     </View>
   );
 };
 
-const RestaurantScreen = () => {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const { restaurant, cuisines, duration, distance, rating } = route.params;
-  const [isDishModalOpen, setIsDishModalOpen] = useState(false);
-  const [dishInfo, setDishInfo] = useState({});
-  const [openQuickMenu, setOpenQuickMenu] = useState(false);
-  const [totalOrderItems, setTotalOrderItems] = useState(0);
-  const [totalOrderAmount, setTotalOrderAmount] = useState(0);
+const RestaurantScreen = ({ route, navigation }) => {
+  const cart = useSelector((state) => state.cart.cart);
+  const { restaurantId } = route.params || {};
+  const [state, setState] = useState({
+    restaurant: null,
+    isDishModalOpen: false,
+    dishInfo: {},
+    totalOrderItems: 0,
+    totalOrderAmount: 0,
+    restaurantMenu: [],
+    categories: [],
+    error: null,
+  });
+  const [loading, setLoading] = useState(true);
 
-  // header
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!restaurantId) {
+        setState(prev => ({ ...prev, error: 'Restaurant ID is undefined' }));
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const [restaurantResponse, categoriesResponse, menuResponse] = await Promise.all([
+          supabase.from('restaurantdata').select('*').eq('id', restaurantId).single(),
+          supabase.from("categories").select("*"),
+          supabase.from("restaurantmenu").select(`*, dishes(*)`)
+        ]);
+
+        if (restaurantResponse.error) throw restaurantResponse.error;
+        if (categoriesResponse.error) throw categoriesResponse.error;
+        if (menuResponse.error) throw menuResponse.error;
+
+        const groupedMenu = categoriesResponse.data.map(category => ({
+          ...category,
+          dishes: menuResponse.data
+            .filter(item => item.categoryid === category.id)
+            .map(item => item.dishes)
+            .flat()
+        }));
+
+        setState(prev => ({
+          ...prev,
+          restaurant: restaurantResponse.data,
+          categories: categoriesResponse.data,
+          restaurantMenu: groupedMenu
+        }));
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setState(prev => ({ ...prev, error: 'Error fetching data' }));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [restaurantId]);
+
   useEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
@@ -174,158 +203,104 @@ const RestaurantScreen = () => {
     });
   }, [navigation]);
 
-  // close DishInfo modal
   const closeDishInfo = () => {
-    setIsDishModalOpen(false);
+    setState(prev => ({ ...prev, isDishModalOpen: false }));
   };
 
+  const totalOrderItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalOrderAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  if (state.error) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>{state.error}</Text>
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView
-      style={[styles.container, { opacity: isDishModalOpen ? 0.2 : 1 }]}
-    >
+    <SafeAreaView style={[styles.container, { opacity: state.isDishModalOpen ? 0.2 : 1 }]}>
       <FlatList
-        data={restaurantMenu}
+        data={state.restaurantMenu}
         renderItem={({ item }) => (
           <DishCategory
             key={item.id}
-            categoryName={item.categoryName}
+            categoryName={item.categoryname}
             dishes={item.dishes}
-            setIsDishModalOpen={setIsDishModalOpen}
-            setDishInfo={setDishInfo}
-            setTotalOrderItems={setTotalOrderItems}
-            setTotalOrderAmount={setTotalOrderAmount}
+            setIsDishModalOpen={(value) => setState(prev => ({ ...prev, isDishModalOpen: value }))}
+            setDishInfo={(info) => setState(prev => ({ ...prev, dishInfo: info }))}
           />
         )}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          // restaurant header
-          <>
-            <RestaurantHead
-              restaurant={restaurant}
-              cuisines={cuisines}
-              duration={duration}
-              distance={distance}
-              rating={rating}
-            />
-            <View
-              style={{
-                flexDirection: "row",
-                marginLeft: 13,
-                marginTop: 20,
-                marginBottom: 10,
-              }}
-            >
-              {/* veg and non-veg */}
-              <FoodType type="veg" />
-              <FoodType type="nonveg" />
-            </View>
-          </>
+          <RestaurantHead
+            restaurantId={restaurantId}
+            restaurant={state.restaurant}
+            cuisines={state.restaurant.cuisines}
+            duration={state.restaurant.duration}
+            distance={state.restaurant.distance}
+            rating={state.restaurant.rating}
+          />
         }
       />
-
-      {/* dish information modal */}
       <Modal
-        visible={isDishModalOpen}
+        visible={state.isDishModalOpen}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setIsDishModalOpen(false)}
+        onRequestClose={closeDishInfo}
       >
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "flex-end",
-          }}
-        >
-          {/* close button */}
+        <View style={{ flex: 1, justifyContent: "flex-end" }}>
           <Pressable style={styles.closeBtn} onPress={closeDishInfo}>
             <AntDesign name="close" size={20} color="#fff" />
           </Pressable>
           <View style={styles.dishModal}>
-            {/* dish information */}
             <DishInfo
-              dishName={dishInfo.dishName}
-              dishImage={dishInfo.dishImage}
-              isBestSeller={dishInfo.isBestSeller}
-              rating={dishInfo.rating}
-              reviews={dishInfo.reviews}
+              dishName={state.dishInfo.dishName}
+              dishImage={state.dishInfo.dishImage}
+              isBestSeller={state.dishInfo.isBestSeller}
+              rating={state.dishInfo.rating}
+              reviews={state.dishInfo.reviews}
             />
-            {/* action buttons */}
             <AddItemBtns
-              price={dishInfo.price}
-              quantity={dishInfo.quantity}
-              setQuantity={dishInfo.setQuantity}
+              id={state.dishInfo.id}
+              price={state.dishInfo.price}
+              quantity={state.dishInfo.quantity}
               closeDishInfo={closeDishInfo}
-              setTotalOrderItems={setTotalOrderItems}
-              setTotalOrderAmount={setTotalOrderAmount}
+              dishName={state.dishInfo.dishName}
+              dishImage={state.dishInfo.dishImage}
             />
           </View>
         </View>
       </Modal>
-      {/* quick menu */}
-      {openQuickMenu && (
-        <View
-          style={[
-            styles.quickMenuContainer,
-            { bottom: totalOrderItems > 0 ? 175 : 85 },
-          ]}
-        >
-          <Text style={styles.quickMenuHeading}>menu</Text>
-          <Text style={styles.quickMenuSubHeading}>
-            Quickly switch between different categories
-          </Text>
-          {/* menu */}
-          {restaurantMenu.map((item) => (
-            <View style={styles.menuItem} key={item.id}>
-              <Text style={styles.menuCategoryName}>{item.categoryName}</Text>
-              <Text style={styles.menuCategoryPrice}>{item.dishes.length}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* menu fab button */}
-      {/* TODO: move it up when bill amount visible */}
-      <MenuFAB
-        setOpenQuickMenu={setOpenQuickMenu}
-        openQuickMenu={openQuickMenu}
-        topPosition={totalOrderItems > 0 ? 550 : 640}
-      />
-
-      {/* total order */}
-      {/* TODO: show only when quantity>0 */}
+       
       {totalOrderItems > 0 && (
         <ShowTotalBillAmount
           totalOrderItems={totalOrderItems}
           totalOrderAmount={totalOrderAmount}
+          navigation={navigation}
+          restaurantName={state.restaurant ? state.restaurant.restaurantname : 'Restaurant'}
+          cartItems={cart}
         />
       )}
     </SafeAreaView>
   );
 };
 
-export default RestaurantScreen;
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F4F6FB",
-  },
-  foodTypeContainer: {
-    backgroundColor: "#fff",
-    flexDirection: "row",
-    borderWidth: 0.5,
-    borderColor: "gray",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    marginRight: 10,
-  },
-  foodTypeText: {
-    marginLeft: 2,
-    fontSize: 12,
-    fontWeight: "500",
   },
   closeBtn: {
     alignItems: "center",
@@ -386,34 +361,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
-  // quick menu styles
-  quickMenuContainer: {
-    position: "absolute",
-    alignSelf: "center",
-    backgroundColor: "#fff",
-    borderRadius: 15,
-    paddingHorizontal: 15,
-    paddingVertical: 20,
-    width: "92%",
-    shadowColor: "rgb(28,28,28)",
-    shadowOpacity: 0.5,
-    elevation: 5,
-    shadowOffset: {
-      height: 5,
-      width: 5,
-    },
-  },
-  quickMenuHeading: {
-    fontSize: 19,
-    fontWeight: "700",
-    textTransform: "capitalize",
-  },
-  quickMenuSubHeading: {
-    fontSize: 15,
-    color: "#585858",
-    marginTop: 10,
-    fontWeight: "400",
-  },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -467,3 +414,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+
+
+export default RestaurantScreen;

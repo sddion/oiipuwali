@@ -1,15 +1,13 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 import React from "react";
 
-const DishComponent = (props) => {
-  const { image, dishName } = props;
+const DishComponent = ({ image, dishName }) => {
   return (
     <View style={styles.container}>
       <Image
-        source={{
-          uri: image,
-        }}
+        source={{ uri: image }}
         style={styles.image}
+        resizeMode="cover"
       />
       <Text style={styles.dishName}>{dishName}</Text>
     </View>

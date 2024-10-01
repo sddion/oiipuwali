@@ -1,328 +1,466 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
-  StyleSheet, 
-  Text, 
-  View, 
-  FlatList, 
-  Image, 
+  StyleSheet,
+  Text,
+  View,
   TouchableOpacity,
-  Modal,
-  TextInput } from 'react-native';
+  TextInput,
+  ScrollView,
+  SafeAreaView,
+  Image,
+} from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons, Feather, Entypo, MaterialCommunityIcons, AntDesign } from '@expo/vector-icons';
-import { decrementQuantity, incrementQuantity, removeFromCart, updateOrderInstructions } from '../redux/CartReducer';
+import { Ionicons, MaterialIcons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { decrementQuantity, incrementQuantity, applyCoupon } from '../redux/CartReducer';
+import { fetchLocations, calculateDeliveryCost } from '../utils/deliveryCostCalculator';
 
-const CartScreen = () => {
+const CartScreen = ({ route }) => {
   const navigation = useNavigation();
+  const { restaurantName = 'Restaurant' } = route.params || {};
   const cart = useSelector((state) => state.cart.cart);
+  const coupon = useSelector((state) => state.cart.coupon);
+  const couponDiscount = useSelector((state) => state.cart.couponDiscount);
   const dispatch = useDispatch();
-  const [subtotal, setSubtotal] = useState(0);
-  const [cookingInstructions, setCookingInstructions] = useState('');
-  const [deliveryInstructions, setDeliveryInstructions] = useState('');
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [modalType, setModalType] = useState('');
+  const [tip, setTip] = useState(0);
+  const [suggestions, setSuggestions] = useState('');
   const [sendCutlery, setSendCutlery] = useState(true);
+  const [userLocation, setUserLocation] = useState(null);
+  const [restaurantLocation, setRestaurantLocation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [deliveryCost, setDeliveryCost] = useState(0);
+  const user = useSelector((state) => state.user);
+  const userId = user ? user.id : null;
 
-  useEffect(() => {
-    const newSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    setSubtotal(newSubtotal);
+  const calculateSubtotal = useCallback(() => {
+    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cart]);
 
-  const renderCartItem = ({ item }) => (
-    <View style={styles.cartItem}>
-      <Image source={{ uri: item.image }} style={styles.itemImage} />
-      <View style={styles.itemDetails}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemPrice}>₹{item.price}</Text>
+  const [subtotal, setSubtotal] = useState(calculateSubtotal());
+
+  useEffect(() => {
+    setSubtotal(calculateSubtotal());
+  }, [cart, calculateSubtotal]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchLocations(userId, 
+        setUserLocation, 
+        setRestaurantLocation, 
+        setLoading);
+    }
+  }, [userId]);
+
+
+  useEffect(() => {
+    if (userLocation && restaurantLocation) {
+      calculateDeliveryCost(
+        userLocation, 
+        restaurantLocation,
+        setDeliveryCost, 
+        setTotal,
+        subtotal);
+    }
+  }, [userLocation, restaurantLocation, subtotal]);
+
+  const platformFee = 6;
+  const gstAndCharges = 28.03;
+  const discount = "";
+
+  const totalToPay = subtotal + deliveryCost + platformFee + gstAndCharges + tip - discount - (coupon ? couponDiscount : 0);
+
+  const renderCartItem = (item) => (
+    <View key={item.id} style={styles.cartItem}>
+      {item.dishImage && (
+        <Image 
+          source={{ uri: item.dishImage }} 
+          style={styles.dishImage} 
+          resizeMode="cover"
+        />
+      )}
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemName}>{item.dishName}</Text>
         <View style={styles.quantityControl}>
           <TouchableOpacity onPress={() => dispatch(decrementQuantity(item))}>
-            <Ionicons name="remove-circle-outline" size={24} color="#FF9800" />
+            <Text style={styles.quantityButton}>-</Text>
           </TouchableOpacity>
           <Text style={styles.quantity}>{item.quantity}</Text>
           <TouchableOpacity onPress={() => dispatch(incrementQuantity(item))}>
-            <Ionicons name="add-circle-outline" size={24} color="#FF9800" />
+            <Text style={styles.quantityButton}>+</Text>
           </TouchableOpacity>
         </View>
       </View>
-      <TouchableOpacity onPress={() => dispatch(removeFromCart(item))} style={styles.removeButton}>
-        <Text style={styles.removeButtonText}>Remove</Text>
-      </TouchableOpacity>
+      <Text style={styles.itemPrice}>₹{item.price * item.quantity}</Text>
     </View>
   );
 
-  const handleAddMoreItems = () => {
-    navigation.navigate('Menu');
+  const handleTipSelection = (amount) => {
+    setTip(amount);
   };
 
-  const handleCookingInstructions = () => {
-    setModalType('cooking');
-    setIsModalVisible(true);
-  };
-
-  const handleDeliveryInstructions = () => {
-    setModalType('delivery');
-    setIsModalVisible(true);
-  };
-
-  const handleToggleCutlery = () => {
+  const handleCutleryToggle = () => {
     setSendCutlery(!sendCutlery);
   };
 
-  const handleSaveInstructions = () => {
-    if (modalType === 'cooking') {
-      dispatch(updateOrderInstructions({ cookingInstructions }));
-    } else if (modalType === 'delivery') {
-      dispatch(updateOrderInstructions({ deliveryInstructions }));
-    }
-    setIsModalVisible(false);
+  const handleApplyCoupon = (selectedCoupon) => {
+    dispatch(applyCoupon(selectedCoupon));
+  };
+
+  const handlePayment = () => {
+    navigation.navigate('Checkout', {
+      total: totalToPay,
+      subtotal,
+      deliveryCost,
+      discount,
+      coupon,
+      restaurantName, 
+    });
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>View cart</Text>
-      </View>
-      <FlatList
-        data={cart}
-        renderItem={renderCartItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.cartList}
-      />
-      
-      <View style={styles.optionsContainer}>
-        <TouchableOpacity style={styles.option} onPress={handleAddMoreItems}>
-          <View style={styles.optionContent}>
-            <Feather name="plus-circle" size={24} color="black" />
-            <Text style={styles.optionText}>Add more Items</Text>
-          </View>
-          <AntDesign name="right" size={20} color="black" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.option} onPress={handleCookingInstructions}>
-          <View style={styles.optionContent}>
-            <Entypo name="new-message" size={24} color="black" />
-            <Text style={styles.optionText}>Add cooking instructions</Text>
-          </View>
-          <AntDesign name="right" size={20} color="black" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.option} onPress={handleDeliveryInstructions}>
-          <View style={styles.optionContent}>
-            <Ionicons name="md-information-circle-outline" size={24} color="black" />
-            <Text style={styles.optionText}>Add delivery instructions</Text>
-          </View>
-          <AntDesign name="right" size={20} color="black" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.option} onPress={handleToggleCutlery}>
-          <View style={styles.optionContent}>
-            <MaterialCommunityIcons name="food-fork-drink" size={24} color="black" />
-            <Text style={styles.optionText}>{sendCutlery ? "Don't send cutlery with this order" : "Send cutlery with this order"}</Text>
-          </View>
-          <AntDesign name={sendCutlery ? "checksquare" : "closesquare"} size={20} color={sendCutlery ? "#4CAF50" : "#F44336"} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.footer}>
-        <View style={styles.subtotalContainer}>
-          <Text style={styles.subtotalText}>Subtotal</Text>
-          <Text style={styles.subtotalAmount}>₹{subtotal.toFixed(2)}</Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{restaurantName}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.checkoutButton}
-          onPress={() => navigation.navigate('Checkout', { 
-            subtotal,
-            cookingInstructions,
-            deliveryInstructions,
-            sendCutlery
-          })}
-        >
-          <Text style={styles.checkoutButtonText}>Checkout</Text>
-        </TouchableOpacity>
-      </View>
 
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {modalType === 'cooking' ? 'Cooking Instructions' : 'Delivery Instructions'}
+        {cart.map(renderCartItem)}
+
+        <TextInput
+          style={styles.suggestionInput}
+          placeholder="Write Suggestions to restaurants..."
+          placeholderTextColor="#888"
+          value={suggestions}
+          onChangeText={setSuggestions}
+          multiline
+        />
+
+        <TouchableOpacity style={styles.cutleryOption} onPress={handleCutleryToggle}>
+          <MaterialIcons
+            name={sendCutlery ? "check-box" : "check-box-outline-blank"}
+            size={24}
+            color="#FF6347"
+          />
+          <View style={styles.cutleryOptionText}>
+            <Text style={styles.cutleryOptionTitle}>
+              {sendCutlery ? "Send cutlery with this order" : "Don't send cutlery with this order"}
             </Text>
-            <TextInput
-              style={styles.modalInput}
-              multiline
-              numberOfLines={4}
-              value={modalType === 'cooking' ? cookingInstructions : deliveryInstructions}
-              onChangeText={modalType === 'cooking' ? setCookingInstructions : setDeliveryInstructions}
-              placeholder={`Enter ${modalType} instructions...`}
-            />
-            <TouchableOpacity style={styles.modalButton} onPress={handleSaveInstructions}>
-              <Text style={styles.modalButtonText}>Save</Text>
+            <Text style={styles.cutleryOptionSubtitle}>
+              Help us reduce plastic waste
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.applyCoupon} onPress={() => navigation.navigate('Coupon', { onCouponSelect: handleApplyCoupon })}>
+          <FontAwesome name="ticket" size={20} color="#888" />
+          <Text style={styles.applyCouponText}>
+            {coupon ? `Applied: ${coupon.code}` : 'APPLY COUPON'}
+          </Text>
+          <Ionicons name="chevron-forward" size={24} color="#888" />
+        </TouchableOpacity>
+
+        <View style={styles.tipSection}>
+          <Text style={styles.tipTitle}>Say thanks with a Tip!</Text>
+          <Text style={styles.tipSubtitle}>How it works</Text>
+          <Text style={styles.tipDescription}>
+            Day & night, our delivery partners bring your favourite meals. Thank them with a tip.
+          </Text>
+          <View style={styles.tipOptions}>
+            {[20, 30, 50].map((amount) => (
+              <TouchableOpacity
+                key={amount}
+                style={[
+                  styles.tipOption,
+                  tip === amount && styles.selectedTipOption,
+                  amount === 30 && styles.mostTippedOption,
+                ]}
+                onPress={() => handleTipSelection(amount)}
+              >
+                <Text style={[
+                  styles.tipOptionText,
+                  tip === amount && styles.selectedTipOptionText,
+                ]}>₹{amount}</Text>
+                {amount === 30 && <Text style={styles.mostTippedText}>Most Tipped</Text>}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.tipOption} onPress={() => navigation.navigate('CustomTipScreen', { onTipSelect: setTip })}>
+              <Text style={styles.tipOptionText}>Other</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
-    </View>
+
+        <View style={styles.billDetails}>
+          <Text style={styles.billTitle}>Bill Details</Text>
+          <View style={styles.billItem}>
+            <Text style={styles.billItemText}>Item Total</Text>
+            <Text style={styles.billItemValue}>₹{subtotal.toFixed(2)}</Text>
+          </View>
+          <View style={styles.billItem}>
+            <Text style={styles.billItemText}>Delivery Fee | {deliveryCost} kms</Text>
+            <Text style={styles.billItemValue}>₹{deliveryCost.toFixed(2)}</Text>
+          </View>
+          <View style={styles.billItem}>
+            <Text style={styles.billItemText}>Platform fee</Text>
+            <Text style={styles.billItemValue}>₹{platformFee.toFixed(2)}</Text>
+          </View>
+          <View style={styles.billItem}>
+            <Text style={styles.billItemText}>GST and Restaurant Charges</Text>
+            <Text style={styles.billItemValue}>₹{gstAndCharges.toFixed(2)}</Text>
+          </View>
+          <View style={styles.billItem}>
+            <Text style={styles.billItemText}>Delivery Tip</Text>
+            <Text style={styles.billItemValue}>₹{tip.toFixed(2)}</Text>
+          </View>
+          {coupon && (
+            <View style={styles.billItem}>
+              <Text style={styles.billItemText}>Coupon Discount ({coupon.code})</Text>
+              <Text style={[styles.billItemValue, styles.discountText]}>-₹{couponDiscount.toFixed(2)}</Text>
+            </View>
+          )}
+          <View style={[styles.billItem, styles.totalItem]}>
+            <Text style={styles.totalText}>Total</Text>
+            <Text style={styles.totalValue}>₹{totalToPay.toFixed(2)}</Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <View style={styles.totalContainer}>
+          <Text style={styles.totalText}>To Pay</Text>
+          <Text style={styles.totalAmount}>₹{totalToPay.toFixed(2)}</Text>
+        </View>
+        <TouchableOpacity style={styles.payButton} onPress={handlePayment}>
+          <MaterialCommunityIcons name="cash" size={24} color="white" />
+          <Text style={styles.payButtonText}>Pay</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#f8f8f8',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     backgroundColor: 'white',
-    elevation: 2,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginLeft: 16,
   },
-  cartList: {
-    padding: 16,
-  },
+
   cartItem: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
     backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    elevation: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  itemImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 4,
+  dishImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 5,
+    marginRight: 10,
   },
-  itemDetails: {
+  itemInfo: {
     flex: 1,
-    marginLeft: 12,
   },
   itemName: {
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  itemPrice: {
-    fontSize: 14,
-    color: '#FF9800',
-    marginTop: 4,
   },
   quantityControl: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
   },
+  quantityButton: {
+    fontSize: 20,
+    color: '#FF6347',
+    paddingHorizontal: 8,
+  },
   quantity: {
-    marginHorizontal: 8,
+    fontSize: 16,
+    paddingHorizontal: 8,
+  },
+  itemPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  suggestionInput: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  cutleryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 16,
+    marginTop: 16,
+  },
+  cutleryOptionText: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  cutleryOptionTitle: {
+    color: '#FF6347',
+    fontWeight: 'bold',
     fontSize: 16,
   },
-  removeButton: {
-    padding: 8,
+  cutleryOptionSubtitle: {
+    color: '#888',
+    marginTop: 4,
   },
-  removeButtonText: {
-    color: 'red',
-  },
-  optionsContainer: {
-    backgroundColor: 'white',
-    marginTop: 16,
-    paddingHorizontal: 16,
-  },
-  option: {
+  applyCoupon: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    backgroundColor: 'white',
+    padding: 16,
+    marginTop: 16,
   },
-  optionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  optionText: {
+  applyCouponText: {
+    flex: 1,
     marginLeft: 16,
     fontSize: 16,
+  },
+  tipSection: {
+    backgroundColor: 'white',
+    padding: 16,
+    marginTop: 16,
+  },
+  tipTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  tipSubtitle: {
+    color: '#4A90E2',
+    marginTop: 4,
+  },
+  tipDescription: {
+    marginTop: 8,
+    color: '#888',
+  },
+  tipOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  tipOption: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    padding: 8,
+    alignItems: 'center',
+    width: '22%',
+  },
+  selectedTipOption: {
+    borderColor: '#FF6347',
+    backgroundColor: '#FFF0ED',
+  },
+  mostTippedOption: {
+    borderColor: '#FF6347',
+  },
+  tipOptionText: {
+    fontSize: 16,
+  },
+  selectedTipOptionText: {
+    color: '#FF6347',
+  },
+  mostTippedText: {
+    color: '#FF6347',
+    fontSize: 10,
+    marginTop: 4,
+  },
+  billDetails: {
+    backgroundColor: 'white',
+    padding: 16,
+    marginTop: 16,
+    borderRadius: 8,
+  },
+  billTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  billItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  billItemText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  billItemValue: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  discountText: {
+    color: '#4CAF50',
+  },
+  totalItem: {
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  totalText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  totalValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FF6347',
   },
   footer: {
     backgroundColor: 'white',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: '#f0f0f0',
   },
-  subtotalContainer: {
+  totalContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  subtotalText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  subtotalAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF9800',
-  },
-  checkoutButton: {
-    backgroundColor: '#FF9800',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  checkoutButtonText: {
-    color: 'white',
+  totalText: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  modalContainer: {
-    flex: 1,
+  totalAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FF6347',
+  },
+  payButton: {
+    backgroundColor: '#4CAF50',
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
+    padding: 16,
     borderRadius: 8,
-    width: '80%',
   },
-  modalTitle: {
+  payButtonText: {
+    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginLeft: 8,
   },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 4,
-    padding: 10,
-    marginBottom: 10,
-    minHeight: 100,
-  },
-  modalButton: {
-    backgroundColor: '#FF9800',
-    padding: 10,
-    borderRadius: 4,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+
 });
+
 
 export default CartScreen;

@@ -3,52 +3,45 @@ import React, { useState } from "react";
 import Dish from "./Dish";
 import { MaterialIcons } from "@expo/vector-icons";
 
-const DishCategory = (props) => {
-  const [isExpand, setIsExpand] = useState(true);
-  const {
-    categoryName,
-    dishes,
-    setIsDishModalOpen,
-    setDishInfo,
-    setTotalOrderItems,
-    setTotalOrderAmount,
-  } = props;
+const DishCategory = ({
+  categoryName,
+  dishes,
+  setIsDishModalOpen,
+  setDishInfo,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const toggleExpand = () => {
-    setIsExpand(!isExpand);
+    setIsExpanded(!isExpanded);
   };
 
   return (
     <View style={styles.container}>
       <Pressable style={styles.expandContainer} onPress={toggleExpand}>
-        {/* dish category */}
         <Text style={styles.dishCategory}>
           {categoryName} ({dishes.length})
         </Text>
-
-        {/* expand icons */}
         <MaterialIcons
-          name={isExpand ? "arrow-drop-up" : "arrow-drop-down"}
+          name={isExpanded ? "arrow-drop-up" : "arrow-drop-down"}
           size={30}
           color="black"
         />
       </Pressable>
 
-      {isExpand &&
+      {isExpanded &&
         dishes.map((item) => (
           <Dish
             key={item.id}
-            dishName={item.dishName}
-            dishImage={item.dishImage}
-            isBestSeller={item.isBestSeller}
+            id={item.id}
+            dishName={item.dishname}
+            dishImage={item.dishimage}
+            isBestSeller={item.isbestseller}
             rating={item.rating}
             reviews={item.reviews}
             price={item.price}
             about={item.about}
             setIsDishModalOpen={setIsDishModalOpen}
             setDishInfo={setDishInfo}
-            setTotalOrderItems={setTotalOrderItems}
-            setTotalOrderAmount={setTotalOrderAmount}
           />
         ))}
     </View>
