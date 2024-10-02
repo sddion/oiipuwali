@@ -13,7 +13,7 @@ const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
-const API_BASE_URL = 'https://your-project-ref.supabase.co/functions/v1/api';
+const API_BASE_URL = 'baseurl/functions/v1/api';
 
 const DeliveryTrackingScreen = ({ route }) => {
   const { orderId, restaurantName } = route.params;

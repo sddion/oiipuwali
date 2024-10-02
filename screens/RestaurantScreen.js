@@ -1,7 +1,7 @@
 import {
   FlatList, SafeAreaView, ActivityIndicator, StyleSheet, View, Text, Pressable, Modal,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   MaterialCommunityIcons, MaterialIcons, AntDesign, Entypo,
 } from "@expo/vector-icons";
@@ -112,7 +112,7 @@ const ShowTotalBillAmount = ({ totalOrderItems, totalOrderAmount, navigation, re
 
 const RestaurantScreen = ({ route, navigation }) => {
   const cart = useSelector((state) => state.cart.cart);
-  const { restaurantId } = route.params || {};
+  const { restaurantId, selectedDishId } = route.params || {};
   const [state, setState] = useState({
     restaurant: null,
     isDishModalOpen: false,
@@ -124,6 +124,7 @@ const RestaurantScreen = ({ route, navigation }) => {
     error: null,
   });
   const [loading, setLoading] = useState(true);
+  const flatListRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -137,27 +138,49 @@ const RestaurantScreen = ({ route, navigation }) => {
         const [restaurantResponse, categoriesResponse, menuResponse] = await Promise.all([
           supabase.from('restaurantdata').select('*').eq('id', restaurantId).single(),
           supabase.from("categories").select("*"),
-          supabase.from("restaurantmenu").select(`*, dishes(*)`)
+          supabase
+            .from("restaurantmenu")
+            .select('dishid')
+            .eq('restaurantid', restaurantId)
         ]);
 
         if (restaurantResponse.error) throw restaurantResponse.error;
         if (categoriesResponse.error) throw categoriesResponse.error;
         if (menuResponse.error) throw menuResponse.error;
 
+        const dishIds = menuResponse.data.map(item => item.dishid);
+
+        const dishesResponse = await supabase
+          .from("dishes")
+          .select("*")
+          .in('dishid', dishIds);
+
+        if (dishesResponse.error) throw dishesResponse.error;
+
+        const dishes = dishesResponse.data;
+
         const groupedMenu = categoriesResponse.data.map(category => ({
           ...category,
-          dishes: menuResponse.data
-            .filter(item => item.categoryid === category.id)
-            .map(item => item.dishes)
-            .flat()
+          dishes: dishes.filter(dish => dish.categoryid === category.id)
         }));
 
         setState(prev => ({
           ...prev,
           restaurant: restaurantResponse.data,
           categories: categoriesResponse.data,
-          restaurantMenu: groupedMenu
+          restaurantMenu: groupedMenu.filter(category => category.dishes.length > 0)
         }));
+
+        // After fetching data, if there's a selectedDishId, scroll to that dish
+        if (selectedDishId && flatListRef.current) {
+          const selectedCategory = groupedMenu.find(category => 
+            category.dishes.some(dish => dish.dishid === selectedDishId)
+          );
+          if (selectedCategory) {
+            const index = groupedMenu.indexOf(selectedCategory);
+            flatListRef.current.scrollToIndex({ index, animated: true });
+          }
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         setState(prev => ({ ...prev, error: 'Error fetching data' }));
@@ -167,7 +190,7 @@ const RestaurantScreen = ({ route, navigation }) => {
     };
 
     fetchData();
-  }, [restaurantId]);
+  }, [restaurantId, selectedDishId]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -229,6 +252,7 @@ const RestaurantScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={[styles.container, { opacity: state.isDishModalOpen ? 0.2 : 1 }]}>
       <FlatList
+        ref={flatListRef}
         data={state.restaurantMenu}
         renderItem={({ item }) => (
           <DishCategory

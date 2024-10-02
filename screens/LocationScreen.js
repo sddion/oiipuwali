@@ -25,7 +25,7 @@ const LocationScreen = ({ route, navigation }) => {
   const [floor, setFloor] = useState(editAddress?.floor || '');
   const [howToReach, setHowToReach] = useState(editAddress?.how_to_reach || '');
   const [locationType, setLocationType] = useState(editAddress?.location_type || 'Home');
-  const [ loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getCurrentLocation();
@@ -125,7 +125,7 @@ const LocationScreen = ({ route, navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={styles.container}>
       <View style={styles.mapContainer}>
         <MapView
           provider={PROVIDER_GOOGLE}
@@ -205,7 +205,7 @@ const LocationScreen = ({ route, navigation }) => {
               ))}
             </View>
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveAddress}>
-              <Text style={styles.saveButtonText}>Save Address</Text>
+              <Text style={styles.saveButtonText}>Save</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -218,9 +218,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  contentContainer: {
-    minHeight: height,
   },
   mapContainer: {
     height: 550,

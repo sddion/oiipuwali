@@ -9,8 +9,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   splash: {
-    resizeMode: "contain",
-    backgroundColor: "#f27e18"
+    image: "./assets/splash.jpg",
+    resizeMode: "cover",
+    backgroundColor: "#FFFFFF"
   },
   ios: {
     supportsTablet: true,
@@ -29,7 +30,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "android.permission.ACCESS_COARSE_LOCATION",
       "android.permission.ACCESS_FINE_LOCATION",
       "android.permission.FOREGROUND_SERVICE",
-  //    "android.permission.CAMERA",
       "android.permission.READ_EXTERNAL_STORAGE",
     ],
     package: "com.userapp.oiipuwali",

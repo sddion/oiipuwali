@@ -7,7 +7,6 @@ import { supabase } from './supabase';
 import HomeScreen from "./screens/HomeScreen";
 import RestaurantScreen from "./screens/RestaurantScreen";
 import LocationScreen from "./screens/LocationScreen";
-import LoadingScreen from "./components/LoadingScreen";
 import LoginScreen from "./screens/LoginScreen";
 import CartScreen from "./screens/CartScreen";
 import Coupon from "./components/Coupon";
@@ -19,26 +18,22 @@ import { Provider } from 'react-redux';
 import { store } from './redux/store';
 import SavedAddresses from "./components/SavedAddresses";
 import DeliveryTrackingScreen from "./screens/deliveryTrackingScreen";
+import CategoryItemsScreen from './screens/CategoryItemsScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState(null);
 
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      setIsLoading(false);
     };
 
     checkSession();
   }, []);
 
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
 
   return (
     <Provider store={store}>
@@ -157,6 +152,10 @@ export default function App() {
               },
               headerShadowVisible: false,
             }}
+          />
+          <Stack.Screen
+            name="CategoryItems"
+            component={CategoryItemsScreen}
           />
         </Stack.Navigator>
       </NavigationContainer>

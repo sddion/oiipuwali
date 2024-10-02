@@ -70,7 +70,7 @@ const CartScreen = ({ route }) => {
   const totalToPay = subtotal + deliveryCost + platformFee + gstAndCharges + tip - discount - (coupon ? couponDiscount : 0);
 
   const renderCartItem = (item) => (
-    <View key={item.id} style={styles.cartItem}>
+    <View key={item.dishid} style={styles.cartItem}>
       {item.dishImage && (
         <Image 
           source={{ uri: item.dishImage }} 

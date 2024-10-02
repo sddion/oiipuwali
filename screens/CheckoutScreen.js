@@ -64,6 +64,11 @@ const CheckoutScreen = () => {
           alert('Payment successful. Payment ID: ' + response.razorpay_payment_id);
           dispatch(cleanCart());
           navigation.navigate('OrderConfirmation');
+          navigation.navigate('DeliveryTracking', {
+            orderId: response.razorpay_payment_id, // Use the actual order ID here
+            restaurantName: restaurantName,
+            deliveryPersonId: orderData.delivery_person_id // You need to get this from the order data
+          });
         },
         prefill: {
           name: 'Customer Name',

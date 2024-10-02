@@ -15,7 +15,6 @@ import { supabase } from '../supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PhoneInput from 'react-native-phone-number-input';
 import { useNavigation } from '@react-navigation/native';
-// import LottieView from 'lottie-react-native';
 import { setUser } from '../redux/UserReducer';
 import { useDispatch } from 'react-redux';
 
@@ -26,7 +25,6 @@ const LoginScreen = () => {
   const [resendTimer, setResendTimer] = useState(0);
   const otpInputRefs = useRef([]);
   const navigation = useNavigation();
-  // const animation = useRef(null);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -147,20 +145,11 @@ const LoginScreen = () => {
 
   return (
     <ImageBackground
-      source={require('../assets/backgound.jpg')}
+      source={require('../assets/background.jpg')}
       style={styles.backgroundImage}
     >
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
-          {/* <View style={styles.animationContainer}>
-            <LottieView
-              autoPlay
-              loop
-              ref={animation}
-              style={styles.lottieAnimation}
-              source={require('../assets/1727122417916.json')}
-            />
-          </View> */}
           <KeyboardAvoidingView 
             behavior={Platform.OS === "ios" ? "padding" : "height"} 
             style={styles.formWrapper}
@@ -235,18 +224,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // animationContainer: {
-  //   width: 200,
-  //   height: 200,
-  //   position: 'absolute',
-  //   top: '50%',
-  //   left: '50%',
-  //   transform: [{ translateX: -100 }, { translateY: -100 }],
-  // },
-  // lottieAnimation: {
-  //   width: '100%',
-  //   height: '100%',
-  // },
   formWrapper: {
     width: '100%',
     position: 'absolute',

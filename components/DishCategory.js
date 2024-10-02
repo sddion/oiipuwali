@@ -31,15 +31,15 @@ const DishCategory = ({
       {isExpanded &&
         dishes.map((item) => (
           <Dish
-            key={item.id}
-            id={item.id}
+            key={`${categoryName}-${item.dishid}`}
+            id={item.dishid}
             dishName={item.dishname}
             dishImage={item.dishimage}
             isBestSeller={item.isbestseller}
             rating={item.rating}
             reviews={item.reviews}
             price={item.price}
-            about={item.about}
+            about={item.description}
             setIsDishModalOpen={setIsDishModalOpen}
             setDishInfo={setDishInfo}
           />

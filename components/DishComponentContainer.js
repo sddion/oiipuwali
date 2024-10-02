@@ -1,18 +1,19 @@
-import { StyleSheet, Text, View, ActivityIndicator, FlatList } from "react-native";
+import { StyleSheet, Text, View, ActivityIndicator, FlatList, TouchableOpacity } from "react-native";
 import React, { useState, useEffect } from "react";
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from "../supabase";
 import DishComponent from "./DishComponent";
 
 const DishComponentContainer = () => {
-  const [dishes, setDishes] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const navigation = useNavigation();
 
   useEffect(() => {
-    fetchDishes();
+    fetchCategories();
   }, []);
 
-  const fetchDishes = async () => {
+  const fetchCategories = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -21,12 +22,16 @@ const DishComponentContainer = () => {
         .limit(10);
 
       if (error) throw error;
-      setDishes(data);
+      setCategories(data);
     } catch (error) {
       console.error("Error fetching categories:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCategoryPress = (category) => {
+    navigation.navigate('CategoryItems', { category });
   };
 
   if (loading) {
@@ -37,24 +42,18 @@ const DishComponentContainer = () => {
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Eat what makes you happy</Text>
       <FlatList
-        data={dishes}
+        data={categories}
         renderItem={({ item }) => (
-          <DishComponent
-            image={item.dishimage}
-            dishName={item.dishname}
-          />
+          <TouchableOpacity onPress={() => handleCategoryPress(item)}>
+            <DishComponent
+              image={item.image}
+              dishName={item.name}
+            />
+          </TouchableOpacity>
         )}
         keyExtractor={(item) => item.id.toString()}
         horizontal
