@@ -37,7 +37,7 @@ yarn-error.*
 android/keystores/release.keystore
 
 # project files
-
+.cursorignore
 credentials.json
 credentials\android\keystore.jks
 package-lock.json
