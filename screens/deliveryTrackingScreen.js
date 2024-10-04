@@ -7,13 +7,13 @@ import { supabase } from '../supabase';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import LottieView from 'lottie-react-native';
+import { getOrderDetails, getDeliveryPersonLocation } from '../utils/api';
 
 const { width, height } = Dimensions.get('window');
 const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
-const API_BASE_URL = 'baseurl/functions/v1/api';
 
 const DeliveryTrackingScreen = ({ route }) => {
   const { orderId, restaurantName } = route.params;
@@ -27,12 +27,14 @@ const DeliveryTrackingScreen = ({ route }) => {
   const [orderStatus, setOrderStatus] = useState(1);
 
   useEffect(() => {
+    fetchOrderDetails();
     fetchLocationsAndRoute();
     fetchDeliveryPersonDetails();
     const locationUpdateInterval = setInterval(updateDeliveryPersonLocation, 10000);
-
+  
     return () => clearInterval(locationUpdateInterval);
   }, []);
+
 
   useEffect(() => {
     const fetchOrderStatus = async () => {
@@ -58,31 +60,21 @@ const DeliveryTrackingScreen = ({ route }) => {
         console.error('Permission to access location was denied');
         return;
       }
-
+  
       const { coords } = await Location.getCurrentPositionAsync({});
       setUserLocation(coords);
-
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select('restaurant_id, delivery_person_id')
-        .eq('id', orderId)
-        .single();
-
-      if (orderError) throw orderError;
-
-      const { data: restaurantData, error: restaurantError } = await supabase
-        .from('restaurantdata')
-        .select('latitude, longitude')
-        .eq('id', orderData.restaurant_id)
-        .single();
-
-      if (restaurantError) throw restaurantError;
-
+  
+      const orderResponse = await fetch(`${API_BASE_URL}/order/${orderId}`);
+      const orderData = await orderResponse.json();
+  
+      const restaurantResponse = await fetch(`${API_BASE_URL}/restaurant/${orderData.restaurant_id}`);
+      const restaurantData = await restaurantResponse.json();
+  
       const restaurantLocation = {
         latitude: restaurantData.latitude,
         longitude: restaurantData.longitude,
       };
-
+  
       await fetchRouteAndTime(coords, restaurantLocation);
       await sendOrderDetailsToDeliveryBoy(orderData.delivery_person_id, coords, restaurantLocation);
       setLoading(false);
@@ -92,6 +84,18 @@ const DeliveryTrackingScreen = ({ route }) => {
     }
   };
 
+  const fetchOrderDetails = async () => {
+    try {
+      const orderData = await getOrderDetails(orderId);
+      setRestaurantId(orderData.restaurant_id);
+      setDeliveryPersonId(orderData.delivery_person_id);
+      // Handle other order details...
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+      // Handle error (e.g., show an error message to the user)
+    }
+  };
+  
   const fetchDeliveryPersonDetails = async () => {
     try {
       const { data, error } = await supabase
@@ -109,10 +113,11 @@ const DeliveryTrackingScreen = ({ route }) => {
 
   const updateDeliveryPersonLocation = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/getDeliveryPersonLocation/${route.params.deliveryPersonId}`);
-      setDeliveryPersonLocation(response.data.location);
+      const { location } = await getDeliveryPersonLocation(deliveryPersonId);
+      setDeliveryPersonLocation(location);
     } catch (error) {
       console.error('Error updating delivery person location:', error);
+      // Handle error
     }
   };
 
@@ -222,7 +227,7 @@ const DeliveryTrackingScreen = ({ route }) => {
     return (
       <View style={styles.loadingContainer}>
         <LottieView
-          source={require('../assets/loading_animation.json')}
+          source={require('../assets/animate/loading.json')}
           autoPlay
           loop
           style={styles.lottieAnimation}

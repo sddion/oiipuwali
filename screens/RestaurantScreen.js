@@ -2,17 +2,14 @@ import {
   FlatList, SafeAreaView, ActivityIndicator, StyleSheet, View, Text, Pressable, Modal,
 } from "react-native";
 import React, { useEffect, useState, useRef } from "react";
-import {
-  MaterialCommunityIcons, MaterialIcons, AntDesign, Entypo,
-} from "@expo/vector-icons";
+import { MaterialIcons, AntDesign, Entypo, } from "@expo/vector-icons";
 import { supabase } from '../supabase';
 import RestaurantHead from "../components/RestaurantHead";
 import DishCategory from "../components/DishCategory";
-import MenuSearch from "../components/MenuSearch";
 import DishInfo from "../components/DishInfo";
 import { useSelector, useDispatch } from 'react-redux';
 import { addToCart } from '../redux/CartReducer';
-
+import { calculateDeliveryCost } from '../utils/deliveryCost';
 
 
 // DishInfo modal buttons
@@ -22,16 +19,23 @@ const AddItemBtns = (props) => {
     id,
     price,
     closeDishInfo,
+    dishName,
+    dishImage,
+    restaurantId,
+    restaurantName
   } = props;
   const [thisQuantity, setThisQuantity] = useState(1);
 
   const addToOrder = () => {
-    dispatch(addToCart({ 
-      id, 
-      price, 
-      quantity: thisQuantity, 
-      dishName: state.dishInfo.dishName, 
-      dishImage: state.dishInfo.dishImage 
+    dispatch(addToCart({
+      restaurant: { id: restaurantId, name: restaurantName },
+      item: {
+        id,
+        price,
+        quantity: thisQuantity,
+        dishName,
+        dishImage
+      }
     }));
     closeDishInfo();
   };
@@ -72,7 +76,7 @@ const AddItemBtns = (props) => {
 };
 
 // bill component
-const ShowTotalBillAmount = ({ totalOrderItems, totalOrderAmount, navigation, restaurantName, cartItems }) => {
+const ShowTotalBillAmount = ({ totalOrderItems, totalOrderAmount, navigation, restaurantName, cartItems, deliveryCost }) => {
   return (
     <View
       style={{
@@ -84,20 +88,19 @@ const ShowTotalBillAmount = ({ totalOrderItems, totalOrderAmount, navigation, re
     >
       <Pressable style={styles.totalBillContainer}>
         <View style={styles.totalAmountContainer}>
-          {/* total items */}
           <Text style={styles.totalItems}>
             {totalOrderItems} {totalOrderItems === 1 ? "item" : "items"}
           </Text>
-          {/* total amount */}
           <Text style={styles.totalAmount}>
             ₹{totalOrderAmount} <Text style={{ fontSize: 9 }}>plus taxes</Text>
           </Text>
+          <Text style={styles.deliveryCost}>Delivery: ₹{deliveryCost}</Text>
         </View>
-        {/* next */}
         <Pressable 
           onPress={() => navigation.navigate('Cart', { 
             restaurantName: restaurantName,
-            cartItems: cartItems
+            cartItems: cartItems,
+            deliveryCost: deliveryCost,
           })}
         >
           <View style={styles.nextContainer}>
@@ -112,7 +115,7 @@ const ShowTotalBillAmount = ({ totalOrderItems, totalOrderAmount, navigation, re
 
 const RestaurantScreen = ({ route, navigation }) => {
   const cart = useSelector((state) => state.cart.cart);
-  const { restaurantId, selectedDishId } = route.params || {};
+  const { restaurantId, selectedDishId, distance } = route.params || {};
   const [state, setState] = useState({
     restaurant: null,
     isDishModalOpen: false,
@@ -122,6 +125,7 @@ const RestaurantScreen = ({ route, navigation }) => {
     restaurantMenu: [],
     categories: [],
     error: null,
+    deliveryCost: 0,
   });
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef(null);
@@ -164,16 +168,18 @@ const RestaurantScreen = ({ route, navigation }) => {
           dishes: dishes.filter(dish => dish.categoryid === category.id)
         }));
 
+        const deliveryCost = calculateDeliveryCost(distance);
         setState(prev => ({
           ...prev,
           restaurant: restaurantResponse.data,
           categories: categoriesResponse.data,
-          restaurantMenu: groupedMenu.filter(category => category.dishes.length > 0)
+          restaurantMenu: groupedMenu.filter(category => category.dishes.length > 0),
+          deliveryCost: deliveryCost,
         }));
 
         // After fetching data, if there's a selectedDishId, scroll to that dish
         if (selectedDishId && flatListRef.current) {
-          const selectedCategory = groupedMenu.find(category => 
+          const selectedCategory = groupedMenu.find(category =>
             category.dishes.some(dish => dish.dishid === selectedDishId)
           );
           if (selectedCategory) {
@@ -198,30 +204,6 @@ const RestaurantScreen = ({ route, navigation }) => {
         <Pressable onPress={() => navigation.goBack()} style={{ width: 50 }}>
           <MaterialIcons name="arrow-back-ios" size={24} color="black" />
         </Pressable>
-      ),
-      headerRight: () => (
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <MenuSearch />
-          <Pressable
-            style={{
-              backgroundColor: "#fff",
-              width: 35,
-              height: 35,
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 20,
-              marginLeft: 10,
-              borderWidth: 0.1,
-              borderColor: "gray",
-            }}
-          >
-            <MaterialCommunityIcons
-              name="dots-horizontal"
-              size={24}
-              color="black"
-            />
-          </Pressable>
-        </View>
       ),
     });
   }, [navigation]);
@@ -261,6 +243,8 @@ const RestaurantScreen = ({ route, navigation }) => {
             dishes={item.dishes}
             setIsDishModalOpen={(value) => setState(prev => ({ ...prev, isDishModalOpen: value }))}
             setDishInfo={(info) => setState(prev => ({ ...prev, dishInfo: info }))}
+            restaurantId={restaurantId}
+            restaurantName={state.restaurant.restaurantname}
           />
         )}
         keyExtractor={(item) => item.id.toString()}
@@ -271,7 +255,7 @@ const RestaurantScreen = ({ route, navigation }) => {
             restaurant={state.restaurant}
             cuisines={state.restaurant.cuisines}
             duration={state.restaurant.duration}
-            distance={state.restaurant.distance}
+            distance={distance}
             rating={state.restaurant.rating}
           />
         }
@@ -297,15 +281,16 @@ const RestaurantScreen = ({ route, navigation }) => {
             <AddItemBtns
               id={state.dishInfo.id}
               price={state.dishInfo.price}
-              quantity={state.dishInfo.quantity}
               closeDishInfo={closeDishInfo}
               dishName={state.dishInfo.dishName}
               dishImage={state.dishInfo.dishImage}
+              restaurantId={restaurantId}
+              restaurantName={state.restaurant ? state.restaurant.restaurantname : ''}
             />
           </View>
         </View>
       </Modal>
-       
+
       {totalOrderItems > 0 && (
         <ShowTotalBillAmount
           totalOrderItems={totalOrderItems}
@@ -313,6 +298,7 @@ const RestaurantScreen = ({ route, navigation }) => {
           navigation={navigation}
           restaurantName={state.restaurant ? state.restaurant.restaurantname : 'Restaurant'}
           cartItems={cart}
+          deliveryCost={state.deliveryCost}
         />
       )}
     </SafeAreaView>
@@ -436,6 +422,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textTransform: "capitalize",
     fontWeight: "500",
+  },
+  deliveryCost: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 5,
   },
 });
 

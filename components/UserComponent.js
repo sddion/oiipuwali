@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../supabase';
 import { decode } from 'base64-arraybuffer';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const UserComponent = ({ route }) => {
   const { userData } = route.params;
@@ -73,10 +74,10 @@ const UserComponent = ({ route }) => {
 
       if (error) throw error;
       setEditingField(null);
-      Alert.alert('Success', `${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully`);
+   //   Alert.alert('Success', `${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully`);
     } catch (error) {
-      console.error('Error updating user data:', error);
-      Alert.alert('Error', `Failed to update ${field}`);
+     console.error('Error updating user data:', error);
+   //   Alert.alert('Error', `Failed to update ${field}`);
     }
   };
 
@@ -148,19 +149,20 @@ const UserComponent = ({ route }) => {
       }
 
       setProfileImage(publicUrl);
-      Alert.alert('Success', 'Profile picture updated successfully');
     } catch (error) {
       console.error('Error uploading image:', error);
       let errorMessage = 'Failed to update profile picture. ';
       errorMessage += 'Error details: ' + (error.message || 'Unknown error occurred.');
       console.error(errorMessage);
-      Alert.alert('Error', errorMessage);
     }
   };
 
-  const renderField = (label, value, field) => (
+  const renderField = (label, value, field, icon) => (
     <View style={styles.fieldContainer}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelContainer}>
+        <MaterialIcons name={icon} size={24} color="#FF6347" style={styles.fieldIcon} />
+        <Text style={styles.label}>{label}</Text>
+      </View>
       <View style={styles.inputContainer}>
         {editingField === field ? (
           <TextInput
@@ -188,29 +190,43 @@ const UserComponent = ({ route }) => {
             }
           }}
         >
-          <Ionicons name={editingField === field ? 'checkmark-outline' : 'create-outline'} size={24} color="#000" />
+          <LinearGradient
+            colors={editingField === field ? ['#4CAF50', '#45a049'] : ['#FF6347', '#FF8C00']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.editButtonGradient}
+          >
+            <Ionicons name={editingField === field ? 'checkmark-outline' : 'create-outline'} size={20} color="#FFF" />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.profileImageContainer}>
-        <TouchableOpacity onPress={pickImage}>
-          <Image
-            source={profileImage ? { uri: profileImage } : { uri: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png' }}
-            style={styles.profileImage}
-          />
-          <View style={styles.editIconContainer}>
-            <Ionicons name="camera" size={24} color="#fff" />
-          </View>
-        </TouchableOpacity>
-      </View>
+    <ScrollView style={styles.container}>
+      <LinearGradient
+        colors={['#FF6347', '#FF8C00']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
+        <View style={styles.profileImageContainer}>
+          <TouchableOpacity onPress={pickImage}>
+            <Image
+              source={profileImage ? { uri: profileImage } : { uri: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png' }}
+              style={styles.profileImage}
+            />
+            <View style={styles.editIconContainer}>
+              <Ionicons name="camera" size={24} color="#fff" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
       <View style={styles.formWrapper}>
-        {renderField('Name', name, 'name')}
-        {renderField('Email', email, 'email')}
-        {renderField('Phone', phone, 'phone')}
+        {renderField('Name', name, 'name', 'person')}
+        {renderField('Email', email, 'email', 'email')}
+        {renderField('Phone', phone, 'phone', 'phone')}
       </View>
     </ScrollView>
   );
@@ -219,30 +235,38 @@ const UserComponent = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f8f8',
+  },
+  header: {
+    paddingTop: 60,
+    paddingBottom: 30,
+    alignItems: 'center',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
   profileImageContainer: {
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
   },
   profileImage: {
     width: 120,
     height: 120,
     borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#FFF',
   },
   editIconContainer: {
     position: 'absolute',
-    bottom: 40,
-    right: 40,
+    bottom: 0,
+    right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 15,
-    padding: 6,
+    borderRadius: 20,
+    padding: 8,
   },
   formWrapper: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: -20,
     padding: 20,
     shadowColor: "#000",
     shadowOffset: {
@@ -256,10 +280,17 @@ const styles = StyleSheet.create({
   fieldContainer: {
     marginBottom: 20,
   },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fieldIcon: {
+    marginRight: 8,
+  },
   label: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
     color: '#333',
   },
   inputContainer: {
@@ -267,13 +298,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: '#F3F4F6',
+    overflow: 'hidden',
   },
   input: {
     flex: 1,
     padding: 15,
     fontSize: 16,
+    color: '#333',
   },
   fieldValue: {
     flex: 1,
@@ -282,7 +315,13 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   editButton: {
-    padding: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  editButtonGradient: {
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

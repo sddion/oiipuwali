@@ -1,10 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { Ionicons} from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LocationContext } from '../context/LocationContext';
 import * as Location from 'expo-location';
 import { supabase } from '../supabase';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const Header = () => {
   const navigation = useNavigation();
@@ -56,15 +57,24 @@ const Header = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#FF6347', '#FF8C00']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 0 }}
+      style={styles.container}
+    >
       <TouchableOpacity style={styles.locationContainer} onPress={navigateToLocationScreen}>
-        <Ionicons name="location-sharp" size={30} color="#E23946" />
-        <View>
+        <View style={styles.iconContainer}>
+          <Ionicons name="location-sharp" size={24} color="#FFF" />
+        </View>
+        <View style={styles.addressContainer}>
           <Text style={styles.locationType}>Your Location</Text>
-          <Text style={styles.address}>{address || "Fetching address..."}</Text>
+          <Text style={styles.address} numberOfLines={1} ellipsizeMode="tail">
+            {address || "Fetching address..."}
+          </Text>
         </View>
       </TouchableOpacity>
-      <TouchableOpacity onPress={() => navigation.navigate('Users')}>
+      <TouchableOpacity onPress={() => navigation.navigate('Users')} style={styles.profileContainer}>
         <Image
           source={
             userProfileImage
@@ -74,39 +84,53 @@ const Header = () => {
           style={styles.userImage}
         />
       </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    width: '93%',
-    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 25,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    paddingLeft: 10,
+  },
+  iconContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 12,
+    padding: 8,
+    marginRight: 12,
+  },
+  addressContainer: {
+    flex: 1,
   },
   locationType: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
+    color: '#FFF',
   },
   address: {
     fontSize: 12,
-    fontWeight: '400',
-    color: '#505050',
+    color: 'rgba(255, 255, 255, 0.8)',
     marginTop: 2,
   },
-  userImage: {
-    width: 32,
-    height: 32,
+  profileContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 20,
+    padding: 2,
+  },
+  userImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     resizeMode: 'cover',
   },
 });

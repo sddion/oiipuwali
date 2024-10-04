@@ -2,9 +2,12 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { FontAwesome, Feather, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useSelector, useDispatch } from 'react-redux';
+import { addFavorite, removeFavorite } from '../redux/UserReducer';
 
 const RestaurantCard = (props) => {
   const {
+    id,
     restaurantimage,
     restaurantname,
     restaurantrating,
@@ -12,21 +15,34 @@ const RestaurantCard = (props) => {
     restaurantaddress,
     restaurantcontact,
     restaurantdescription,
+    distance,
   } = props;
 
   const navigation = useNavigation();
+  const dispatch = useDispatch();
+  const favorites = useSelector(state => state.user.favorites);
+  const isFavorite = favorites.includes(id);
+
+  const toggleFavorite = () => {
+    if (isFavorite) {
+      dispatch(removeFavorite(id));
+    } else {
+      dispatch(addFavorite(id));
+    }
+  };
 
   return (
     <Pressable
       style={styles.container}
       onPress={() =>
         navigation.navigate("Restaurant", {
-          restaurantId: props.id,
+          restaurantId: id,
           restaurantname,
           restaurantaddress,
           restaurantrating,
           restaurantcontact,
           restaurantdescription,
+          distance,
         })
       }
     >
@@ -38,9 +54,14 @@ const RestaurantCard = (props) => {
       />
 
       {/* like */}
-      <View style={styles.likeContainer}>
-        <Feather name="heart" size={20} color="#FC7D86" />
-      </View>
+      <Pressable style={styles.likeContainer} onPress={toggleFavorite}>
+        <Feather 
+          name="heart" 
+          size={20} 
+          color={isFavorite ? "#FC7D86" : "#ffffff"} 
+          style={isFavorite ? styles.filledHeart : styles.outlinedHeart}
+        />
+      </Pressable>
 
       {/* rating */}
       <View style={styles.ratingContainer}>
@@ -55,7 +76,7 @@ const RestaurantCard = (props) => {
         </View>
         <View style={styles.cuisineDetails}>
           <Text style={styles.cuisine}>{restaurantaddress}</Text>
-          <Text style={styles.bill}>{restaurantcontact}</Text>
+          <Text style={styles.distance}>{distance ? `${distance.toFixed(1)} km` : 'N/A'}</Text>
         </View>
 
         {/* hr */}
@@ -98,13 +119,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     position: "absolute",
-    top: 40,
+    top: 10,
     right: 10,
-    backgroundColor: "#fff",
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     zIndex: 1,
     width: 35,
     height: 35,
     borderRadius: 20,
+  },
+  filledHeart: {
+    // No additional styles needed for filled heart
+  },
+  outlinedHeart: {
+    opacity: 0.7,
   },
   image: {
     width: "100%",
@@ -177,5 +204,10 @@ const styles = StyleSheet.create({
     marginLeft: 7,
     color: "#505050",
     fontWeight: "500",
+  },
+  distance: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#484848',
   },
 });

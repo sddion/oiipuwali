@@ -1,67 +1,82 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  SafeAreaView,
-  Image,
-} from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, SafeAreaView, Image, Alert } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
-import { decrementQuantity, incrementQuantity, applyCoupon } from '../redux/CartReducer';
-import { fetchLocations, calculateDeliveryCost } from '../utils/deliveryCostCalculator';
+import { decrementQuantity, incrementQuantity, applyCoupon, removeCoupon } from '../redux/CartReducer';
+import { calculateDeliveryCost } from '../utils/deliveryCost';
+import { calculateDistance } from '../utils/distance';
+import { LinearGradient } from 'expo-linear-gradient';
+
 
 const CartScreen = ({ route }) => {
   const navigation = useNavigation();
-  const { restaurantName = 'Restaurant' } = route.params || {};
+  const { restaurantName = 'Restaurant', restaurantId, deliveryCost: initialDeliveryCost } = route.params || {};
   const cart = useSelector((state) => state.cart.cart);
   const coupon = useSelector((state) => state.cart.coupon);
   const couponDiscount = useSelector((state) => state.cart.couponDiscount);
+  const couponError = useSelector((state) => state.cart.couponError);
+  const user = useSelector((state) => state.user);
   const dispatch = useDispatch();
+
   const [tip, setTip] = useState(0);
+  const [customTip, setCustomTip] = useState('');
   const [suggestions, setSuggestions] = useState('');
   const [sendCutlery, setSendCutlery] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
   const [restaurantLocation, setRestaurantLocation] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [deliveryCost, setDeliveryCost] = useState(0);
-  const user = useSelector((state) => state.user);
-  const userId = user ? user.id : null;
+  const [deliveryCost, setDeliveryCost] = useState(initialDeliveryCost || 0);
+  const [subtotal, setSubtotal] = useState(0);
+  const [distance, setDistance] = useState(0);
+  const [couponCode, setCouponCode] = useState('');
+  const [isCouponExpanded, setIsCouponExpanded] = useState(false);
 
   const calculateSubtotal = useCallback(() => {
     return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cart]);
 
-  const [subtotal, setSubtotal] = useState(calculateSubtotal());
 
   useEffect(() => {
-    setSubtotal(calculateSubtotal());
+    const newSubtotal = calculateSubtotal();
+    setSubtotal(newSubtotal);
   }, [cart, calculateSubtotal]);
 
   useEffect(() => {
-    if (userId) {
-      fetchLocations(userId, 
-        setUserLocation, 
-        setRestaurantLocation, 
-        setLoading);
-    }
-  }, [userId]);
+    const getLocationsAndDeliveryCost = async () => {
+      if (user.id && restaurantId) {
+        try {
+          console.log('Fetching locations...');
+  
+          const locationsData = await fetchLocations(user.id, restaurantId);
+          console.log('Locations data:', locationsData);
+  
+          setUserLocation(locationsData.userLocation);
+          setRestaurantLocation(locationsData.restaurantLocation);
+  
+          // Calculate distance
+          const calculatedDistance = calculateDistance(
+            locationsData.userLocation,
+            locationsData.restaurantLocation
+          );
+          setDistance(calculatedDistance);
+  
+          // Use the initial delivery cost if available, otherwise calculate
+          const cost = initialDeliveryCost || calculateDeliveryCost(calculatedDistance);
+          setDeliveryCost(cost);
+  
+          console.log('Delivery cost:', cost);
+          console.log('Distance:', calculatedDistance);
+        } catch (error) {
+          console.error('Error fetching locations:', error);
+          setDeliveryCost(initialDeliveryCost || 0);
+          setDistance(0);
+        }
+      }
+    };
+  
+    getLocationsAndDeliveryCost();
+  }, [user.id, restaurantId, initialDeliveryCost]);
 
-
-  useEffect(() => {
-    if (userLocation && restaurantLocation) {
-      calculateDeliveryCost(
-        userLocation, 
-        restaurantLocation,
-        setDeliveryCost, 
-        setTotal,
-        subtotal);
-    }
-  }, [userLocation, restaurantLocation, subtotal]);
 
   const platformFee = 6;
   const gstAndCharges = 28.03;
@@ -70,66 +85,109 @@ const CartScreen = ({ route }) => {
   const totalToPay = subtotal + deliveryCost + platformFee + gstAndCharges + tip - discount - (coupon ? couponDiscount : 0);
 
   const renderCartItem = (item) => (
-    <View key={item.dishid} style={styles.cartItem}>
-      {item.dishImage && (
-        <Image 
-          source={{ uri: item.dishImage }} 
-          style={styles.dishImage} 
-          resizeMode="cover"
-        />
-      )}
+    <View key={item.id} style={styles.cartItem}>
+      <Image source={{ uri: item.dishImage }} style={styles.dishImage} />
       <View style={styles.itemInfo}>
         <Text style={styles.itemName}>{item.dishName}</Text>
+        <Text style={styles.itemPrice}>₹{item.price * item.quantity}</Text>
         <View style={styles.quantityControl}>
-          <TouchableOpacity onPress={() => dispatch(decrementQuantity(item))}>
-            <Text style={styles.quantityButton}>-</Text>
+          <TouchableOpacity style={styles.quantityButton} onPress={() => dispatch(decrementQuantity(item))}>
+            <Text style={styles.quantityButtonText}>-</Text>
           </TouchableOpacity>
           <Text style={styles.quantity}>{item.quantity}</Text>
-          <TouchableOpacity onPress={() => dispatch(incrementQuantity(item))}>
-            <Text style={styles.quantityButton}>+</Text>
+          <TouchableOpacity style={styles.quantityButton} onPress={() => dispatch(incrementQuantity(item))}>
+            <Text style={styles.quantityButtonText}>+</Text>
           </TouchableOpacity>
         </View>
       </View>
-      <Text style={styles.itemPrice}>₹{item.price * item.quantity}</Text>
     </View>
   );
 
   const handleTipSelection = (amount) => {
-    setTip(amount);
+    if (amount === 'custom') {
+      setTip(parseFloat(customTip) || 0);
+    } else {
+      setTip(amount);
+      setCustomTip('');
+    }
+  };
+
+  const handleCustomTipChange = (value) => {
+    setCustomTip(value);
+    if (value) {
+      setTip(parseFloat(value) || 0);
+    } else {
+      setTip(0);
+    }
   };
 
   const handleCutleryToggle = () => {
     setSendCutlery(!sendCutlery);
   };
 
-  const handleApplyCoupon = (selectedCoupon) => {
-    dispatch(applyCoupon(selectedCoupon));
+  const handleApplyCoupon = () => {
+    if (couponCode.trim()) {
+      dispatch(applyCoupon(couponCode.trim()));
+      if (!couponError) {
+        setIsCouponExpanded(false);
+      }
+    }
   };
 
-  const handlePayment = () => {
+  const handleRemoveCoupon = () => {
+    dispatch(removeCoupon());
+    setCouponCode('');
+  };
+
+  const handleCheckout = () => {
+    if (!cart.length) {
+      Alert.alert('Error', 'Your cart is empty');
+      return;
+    }
+
+    console.log('Navigating to Checkout screen');
     navigation.navigate('Checkout', {
       total: totalToPay,
-      subtotal,
-      deliveryCost,
-      discount,
-      coupon,
-      restaurantName, 
+      restaurantId: restaurantId,
+      restaurantName: restaurantName,
+      cart: cart,
+      deliveryCost: deliveryCost,
+      userAddress: user.address
     });
   };
+
+  const tipOptions = [20, 30, 50];
+
+  const renderTipOption = (amount) => (
+    <TouchableOpacity
+      key={`tip-${amount}`}
+      style={[styles.tipOption, tip === amount && styles.selectedTipOption]}
+      onPress={() => handleTipSelection(amount)}
+    >
+      <Text style={[styles.tipOptionText, tip === amount && styles.selectedTipOptionText]}>₹{amount}</Text>
+    </TouchableOpacity>
+  );
+
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
-        <View style={styles.header}>
+        <LinearGradient
+          colors={['#FF6347', '#FF8C00']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.header}
+        >
           <Text style={styles.headerTitle}>{restaurantName}</Text>
-        </View>
+        </LinearGradient>
 
-        {cart.map(renderCartItem)}
+        <View style={styles.cartItemsContainer}>
+          {cart.map((item) => renderCartItem(item))}
+        </View>
 
         <TextInput
           style={styles.suggestionInput}
-          placeholder="Write Suggestions to restaurants..."
-          placeholderTextColor="#888"
+          placeholder="Write suggestions to restaurant..."
           value={suggestions}
           onChangeText={setSuggestions}
           multiline
@@ -141,51 +199,67 @@ const CartScreen = ({ route }) => {
             size={24}
             color="#FF6347"
           />
-          <View style={styles.cutleryOptionText}>
-            <Text style={styles.cutleryOptionTitle}>
-              {sendCutlery ? "Send cutlery with this order" : "Don't send cutlery with this order"}
-            </Text>
-            <Text style={styles.cutleryOptionSubtitle}>
-              Help us reduce plastic waste
-            </Text>
-          </View>
+          <Text style={styles.cutleryOptionTitle}>
+            {sendCutlery ? "Send cutlery" : "Don't send cutlery"}
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.applyCoupon} onPress={() => navigation.navigate('Coupon', { onCouponSelect: handleApplyCoupon })}>
-          <FontAwesome name="ticket" size={20} color="#888" />
-          <Text style={styles.applyCouponText}>
-            {coupon ? `Applied: ${coupon.code}` : 'APPLY COUPON'}
-          </Text>
-          <Ionicons name="chevron-forward" size={24} color="#888" />
-        </TouchableOpacity>
+        <View style={styles.couponSection}>
+          <TouchableOpacity 
+            style={styles.couponHeader} 
+            onPress={() => setIsCouponExpanded(!isCouponExpanded)}
+          >
+            <FontAwesome name="ticket" size={20} color="#FF6347" />
+            <Text style={styles.couponHeaderText}>
+              {coupon ? `Applied: ${coupon}` : 'APPLY COUPON'}
+            </Text>
+            <Ionicons 
+              name={isCouponExpanded ? "chevron-up" : "chevron-down"} 
+              size={24} 
+              color="#FF6347" 
+            />
+          </TouchableOpacity>
+          {isCouponExpanded && (
+            <View style={styles.couponExpanded}>
+              <TextInput
+                style={styles.couponInput}
+                value={couponCode}
+                onChangeText={setCouponCode}
+                placeholder="Enter coupon code"
+                placeholderTextColor="#666"
+              />
+              <TouchableOpacity 
+                style={styles.applyCouponButton} 
+                onPress={handleApplyCoupon}
+              >
+                <Text style={styles.applyCouponButtonText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {couponError && (
+            <Text style={styles.couponErrorText}>{couponError}</Text>
+          )}
+          {coupon && (
+            <TouchableOpacity 
+              style={styles.removeCouponButton} 
+              onPress={handleRemoveCoupon}
+            >
+              <Text style={styles.removeCouponButtonText}>Remove Coupon</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={styles.tipSection}>
-          <Text style={styles.tipTitle}>Say thanks with a Tip!</Text>
-          <Text style={styles.tipSubtitle}>How it works</Text>
-          <Text style={styles.tipDescription}>
-            Day & night, our delivery partners bring your favourite meals. Thank them with a tip.
-          </Text>
-          <View style={styles.tipOptions}>
-            {[20, 30, 50].map((amount) => (
-              <TouchableOpacity
-                key={amount}
-                style={[
-                  styles.tipOption,
-                  tip === amount && styles.selectedTipOption,
-                  amount === 30 && styles.mostTippedOption,
-                ]}
-                onPress={() => handleTipSelection(amount)}
-              >
-                <Text style={[
-                  styles.tipOptionText,
-                  tip === amount && styles.selectedTipOptionText,
-                ]}>₹{amount}</Text>
-                {amount === 30 && <Text style={styles.mostTippedText}>Most Tipped</Text>}
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity style={styles.tipOption} onPress={() => navigation.navigate('CustomTipScreen', { onTipSelect: setTip })}>
-              <Text style={styles.tipOptionText}>Other</Text>
-            </TouchableOpacity>
+          <Text style={styles.tipTitle}>Tip your delivery partner</Text>
+          <View style={styles.tipOptionsContainer}>
+            {tipOptions.map(renderTipOption)}
+            <TextInput
+              style={[styles.tipOption, styles.customTipInput]}
+              placeholder="Custom"
+              keyboardType="numeric"
+              value={customTip}
+              onChangeText={handleCustomTipChange}
+            />
           </View>
         </View>
 
@@ -196,9 +270,13 @@ const CartScreen = ({ route }) => {
             <Text style={styles.billItemValue}>₹{subtotal.toFixed(2)}</Text>
           </View>
           <View style={styles.billItem}>
-            <Text style={styles.billItemText}>Delivery Fee | {deliveryCost} kms</Text>
-            <Text style={styles.billItemValue}>₹{deliveryCost.toFixed(2)}</Text>
-          </View>
+  <Text style={styles.billItemText}>
+    Delivery Fee {distance > 0 ? `| ${distance.toFixed(2)} km` : ''}
+  </Text>
+  <Text style={styles.billItemValue}>
+    {deliveryCost > 0 ? `₹${deliveryCost.toFixed(2)}` : ''}
+  </Text>
+</View>
           <View style={styles.billItem}>
             <Text style={styles.billItemText}>Platform fee</Text>
             <Text style={styles.billItemValue}>₹{platformFee.toFixed(2)}</Text>
@@ -213,7 +291,7 @@ const CartScreen = ({ route }) => {
           </View>
           {coupon && (
             <View style={styles.billItem}>
-              <Text style={styles.billItemText}>Coupon Discount ({coupon.code})</Text>
+              <Text style={styles.billItemText}>Discount ({coupon.code})</Text>
               <Text style={[styles.billItemValue, styles.discountText]}>-₹{couponDiscount.toFixed(2)}</Text>
             </View>
           )}
@@ -229,9 +307,16 @@ const CartScreen = ({ route }) => {
           <Text style={styles.totalText}>To Pay</Text>
           <Text style={styles.totalAmount}>₹{totalToPay.toFixed(2)}</Text>
         </View>
-        <TouchableOpacity style={styles.payButton} onPress={handlePayment}>
-          <MaterialCommunityIcons name="cash" size={24} color="white" />
-          <Text style={styles.payButtonText}>Pay</Text>
+        <TouchableOpacity style={styles.payButton} onPress={handleCheckout}>
+          <LinearGradient
+            colors={['#4CAF50', '#45a049']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.payButtonGradient}
+          >
+            <MaterialCommunityIcons name="cash" size={24} color="white" />
+            <Text style={styles.payButtonText}>Pay</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -245,158 +330,191 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f8f8',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: 15,
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
+    color: 'white',
   },
-
+  cartItemsContainer: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    margin: 10,
+    padding: 10,
+  },
   cartItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    marginBottom: 10,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   dishImage: {
     width: 60,
     height: 60,
-    borderRadius: 5,
+    borderRadius: 8,
     marginRight: 10,
   },
   itemInfo: {
     flex: 1,
   },
   itemName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
+  },
+  itemPrice: {
+    fontSize: 14,
+    color: '#FF6347',
   },
   quantityControl: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 5,
   },
   quantityButton: {
-    fontSize: 20,
-    color: '#FF6347',
-    paddingHorizontal: 8,
+    backgroundColor: '#FF6347',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  quantity: {
-    fontSize: 16,
-    paddingHorizontal: 8,
-  },
-  itemPrice: {
+  quantityButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
+  quantity: {
+    fontSize: 14,
+    paddingHorizontal: 10,
+  },
   suggestionInput: {
     backgroundColor: 'white',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderRadius: 8,
+    padding: 10,
+    margin: 10,
+    fontSize: 14,
   },
   cutleryOption: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    padding: 16,
-    marginTop: 16,
-  },
-  cutleryOptionText: {
-    flex: 1,
-    marginLeft: 16,
+    padding: 10,
+    margin: 10,
+    borderRadius: 8,
   },
   cutleryOptionTitle: {
-    color: '#FF6347',
-    fontWeight: 'bold',
-    fontSize: 16,
+    marginLeft: 10,
+    fontSize: 14,
   },
-  cutleryOptionSubtitle: {
-    color: '#888',
-    marginTop: 4,
+  couponSection: {
+    backgroundColor: 'white',
+    padding: 10,
+    margin: 10,
+    borderRadius: 8,
   },
-  applyCoupon: {
+  couponHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'white',
-    padding: 16,
-    marginTop: 16,
   },
-  applyCouponText: {
+  couponHeaderText: {
     flex: 1,
-    marginLeft: 16,
-    fontSize: 16,
+    marginLeft: 10,
+    fontSize: 14,
+  },
+  couponExpanded: {
+    flexDirection: 'row',
+    marginTop: 10,
+  },
+  couponInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    padding: 8,
+    marginRight: 10,
+  },
+  applyCouponButton: {
+    backgroundColor: '#FF6347',
+    padding: 10,
+    borderRadius: 4,
+    justifyContent: 'center',
+  },
+  applyCouponButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  removeCouponButton: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  removeCouponButtonText: {
+    color: '#FF6347',
   },
   tipSection: {
     backgroundColor: 'white',
-    padding: 16,
-    marginTop: 16,
+    padding: 12,
+    margin: 10,
+    borderRadius: 8,
   },
   tipTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
   },
-  tipSubtitle: {
-    color: '#4A90E2',
-    marginTop: 4,
-  },
-  tipDescription: {
-    marginTop: 8,
-    color: '#888',
-  },
-  tipOptions: {
+  tipOptionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
   },
   tipOption: {
+    flex: 1,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 4,
     padding: 8,
     alignItems: 'center',
-    width: '22%',
+    marginHorizontal: 4,
   },
   selectedTipOption: {
     borderColor: '#FF6347',
     backgroundColor: '#FFF0ED',
   },
-  mostTippedOption: {
-    borderColor: '#FF6347',
-  },
   tipOptionText: {
-    fontSize: 16,
+    fontSize: 14,
+    color: '#333',
   },
   selectedTipOptionText: {
     color: '#FF6347',
+    fontWeight: 'bold',
   },
-  mostTippedText: {
-    color: '#FF6347',
-    fontSize: 10,
-    marginTop: 4,
+  customTipInput: {
+    textAlign: 'center',
+    fontSize: 14,
   },
   billDetails: {
     backgroundColor: 'white',
-    padding: 16,
-    marginTop: 16,
+    padding: 15,
+    margin: 10,
     borderRadius: 8,
   },
   billTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   billItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 5,
   },
   billItemText: {
     fontSize: 14,
@@ -426,7 +544,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     backgroundColor: 'white',
-    padding: 16,
+    padding: 10,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },
@@ -434,33 +552,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   totalText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   totalAmount: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FF6347',
   },
   payButton: {
-    backgroundColor: '#4CAF50',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  payButtonGradient: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 8,
+    padding: 12,
   },
   payButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
   },
-
+  couponErrorText: {
+    color: 'red',
+    fontSize: 12,
+    marginTop: 5,
+  },
 });
-
 
 export default CartScreen;

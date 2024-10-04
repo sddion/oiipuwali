@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Image, ScrollView } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { supabase } from "../supabase";
 
-const RestaurantHead = ({ restaurantId, restaurant }) => {
+const RestaurantHead = ({ restaurantId, restaurant, distance }) => {
   const [localRestaurant, setLocalRestaurant] = useState(restaurant);
 
   useEffect(() => {
@@ -25,6 +25,16 @@ const RestaurantHead = ({ restaurantId, restaurant }) => {
     } catch (error) {
       console.error("Error fetching restaurant data:", error);
     }
+  };
+
+  const formatDistance = (dist) => {
+    if (dist === null || dist === undefined) return 'N/A';
+    if (dist < 1) {
+      // If less than 1 km, show in meters
+      return `${Math.round(dist * 1000)} m away`;
+    }
+    // If 1 km or more, show in km with one decimal place
+    return `${dist.toFixed(1)} km away`;
   };
 
   if (!localRestaurant) {
@@ -54,7 +64,7 @@ const RestaurantHead = ({ restaurantId, restaurant }) => {
             >
               |
             </Text>
-            <Text style={styles.distance}>2 km away</Text>
+            <Text style={styles.distance}>{formatDistance(distance)}</Text>
           </View>
         </View>
         <View style={styles.ratingContainer}>

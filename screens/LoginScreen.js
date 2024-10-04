@@ -95,7 +95,6 @@ const LoginScreen = () => {
         // Save user to the database
         await saveUserToDatabase(data.user);
         dispatch(setUser({ id: data.user.id, phone: data.user.phone }));
-
         navigation.replace('Home');
       }
     } catch (error) {
@@ -145,7 +144,7 @@ const LoginScreen = () => {
 
   return (
     <ImageBackground
-      source={require('../assets/background.jpg')}
+      source={require('../assets/background.png')}
       style={styles.backgroundImage}
     >
       <SafeAreaView style={styles.container}>

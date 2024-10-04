@@ -9,7 +9,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   splash: {
-    image: "./assets/splash.jpg",
+    image: "./assets/splash.png",
     resizeMode: "cover",
     backgroundColor: "#FFFFFF"
   },
@@ -42,8 +42,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   web: {
     bundler: "metro",
-    output: "static",
-    favicon: "./assets/favicon.png"
+    output: "static"
+   // favicon: "./assets/favicon.png"
   },
   plugins: [
     [

@@ -36,8 +36,11 @@ yarn-error.*
 
 android/keystores/release.keystore
 
+# project files
 
 credentials.json
 credentials\android\keystore.jks
 package-lock.json
 oiipuwali.code-workspace
+backend\.env
+backend\node_modules

@@ -18,6 +18,8 @@ const Dish = (props) => {
     about,
     setIsDishModalOpen,
     setDishInfo,
+    restaurantId,
+    restaurantName
   } = props;
 
   const cartItem = cart.find(item => item.id === id);
@@ -38,7 +40,20 @@ const Dish = (props) => {
   };
 
   const addItem = () => {
-    dispatch(addToCart({ id, dishName, price, quantity: 1 }));
+    if (id && dishName && price && dishImage && restaurantId && restaurantName) {
+      dispatch(addToCart({
+        restaurant: { id: restaurantId, name: restaurantName },
+        item: { 
+          id, 
+          dishName, 
+          price: parseFloat(price),
+          dishImage,
+          quantity: 1
+        }
+      }));
+    } else {
+      console.error('Missing required properties for adding to cart', { id, dishName, price, dishImage, restaurantId, restaurantName });
+    }
   };
 
   const deleteItem = () => {

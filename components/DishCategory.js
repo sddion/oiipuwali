@@ -8,6 +8,8 @@ const DishCategory = ({
   dishes,
   setIsDishModalOpen,
   setDishInfo,
+  restaurantId,
+  restaurantName
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -42,6 +44,8 @@ const DishCategory = ({
             about={item.description}
             setIsDishModalOpen={setIsDishModalOpen}
             setDishInfo={setDishInfo}
+            restaurantId={restaurantId}
+            restaurantName={restaurantName}
           />
         ))}
     </View>

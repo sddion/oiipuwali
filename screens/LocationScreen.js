@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,13 +8,24 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  Animated,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { supabase } from '../supabase';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { LocationContext } from '../context/LocationContext';
+import { useDispatch } from 'react-redux';
+import { addSavedAddress } from '../redux/UserReducer';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const { height } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const ASPECT_RATIO = width / height;
+const LATITUDE_DELTA = 0.0922;
+const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
 const LocationScreen = ({ route, navigation }) => {
   const { editAddress } = route.params || {};
@@ -26,10 +37,38 @@ const LocationScreen = ({ route, navigation }) => {
   const [howToReach, setHowToReach] = useState(editAddress?.how_to_reach || '');
   const [locationType, setLocationType] = useState(editAddress?.location_type || 'Home');
   const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const slideAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     getCurrentLocation();
+    const keyboardWillShowSub = Keyboard.addListener('keyboardWillShow', keyboardWillShow);
+    const keyboardWillHideSub = Keyboard.addListener('keyboardWillHide', keyboardWillHide);
+
+    return () => {
+      keyboardWillShowSub.remove();
+      keyboardWillHideSub.remove();
+    };
   }, []);
+
+
+  const keyboardWillShow = (event) => {
+    Animated.timing(slideAnimation, {
+      duration: event.duration,
+      toValue: -event.endCoordinates.height,
+      useNativeDriver: true,
+    }).start();
+  };
+
+
+  const keyboardWillHide = (event) => {
+    Animated.timing(slideAnimation, {
+      duration: event.duration,
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const getCurrentLocation = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
@@ -43,6 +82,7 @@ const LocationScreen = ({ route, navigation }) => {
     setLoading(false);
   };
 
+
   const handleMapPress = async (event) => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
     setUserLocation({ latitude, longitude });
@@ -55,6 +95,7 @@ const LocationScreen = ({ route, navigation }) => {
       setAddress(data.results[0].formatted_address);
     }
   };
+
 
   const handleConfirmLocation = () => {
     setShowAddressForm(true);
@@ -107,6 +148,7 @@ const LocationScreen = ({ route, navigation }) => {
           return;
         }
         savedAddresses.push(newAddress);
+        dispatch(addSavedAddress(newAddress));
       }
 
       const { error: updateError } = await supabase
@@ -124,8 +166,172 @@ const LocationScreen = ({ route, navigation }) => {
     }
   };
 
+  const mapStyle = [
+    {
+      "elementType": "geometry",
+      "stylers": [
+        {
+          "color": "#f5f5f5"
+        }
+      ]
+    },
+    {
+      "elementType": "labels.icon",
+      "stylers": [
+        {
+          "visibility": "off"
+        }
+      ]
+    },
+    {
+      "elementType": "labels.text.fill",
+      "stylers": [
+        {
+          "color": "#616161"
+        }
+      ]
+    },
+    {
+      "elementType": "labels.text.stroke",
+      "stylers": [
+        {
+          "color": "#f5f5f5"
+        }
+      ]
+    },
+    {
+      "featureType": "administrative.land_parcel",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        {
+          "color": "#bdbdbd"
+        }
+      ]
+    },
+    {
+      "featureType": "poi",
+      "elementType": "geometry",
+      "stylers": [
+        {
+          "color": "#eeeeee"
+        }
+      ]
+    },
+    {
+      "featureType": "poi",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        {
+          "color": "#757575"
+        }
+      ]
+    },
+    {
+      "featureType": "poi.park",
+      "elementType": "geometry",
+      "stylers": [
+        {
+          "color": "#e5e5e5"
+        }
+      ]
+    },
+    {
+      "featureType": "poi.park",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        {
+          "color": "#9e9e9e"
+        }
+      ]
+    },
+    {
+      "featureType": "road",
+      "elementType": "geometry",
+      "stylers": [
+        {
+          "color": "#ffffff"
+        }
+      ]
+    },
+    {
+      "featureType": "road.arterial",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        {
+          "color": "#757575"
+        }
+      ]
+    },
+    {
+      "featureType": "road.highway",
+      "elementType": "geometry",
+      "stylers": [
+        {
+          "color": "#dadada"
+        }
+      ]
+    },
+    {
+      "featureType": "road.highway",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        {
+          "color": "#616161"
+        }
+      ]
+    },
+    {
+      "featureType": "road.local",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        {
+          "color": "#9e9e9e"
+        }
+      ]
+    },
+    {
+      "featureType": "transit.line",
+      "elementType": "geometry",
+      "stylers": [
+        {
+          "color": "#e5e5e5"
+        }
+      ]
+    },
+    {
+      "featureType": "transit.station",
+      "elementType": "geometry",
+      "stylers": [
+        {
+          "color": "#eeeeee"
+        }
+      ]
+    },
+    {
+      "featureType": "water",
+      "elementType": "geometry",
+      "stylers": [
+        {
+          "color": "#c9c9c9"
+        }
+      ]
+    },
+    {
+      "featureType": "water",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        {
+          "color": "#9e9e9e"
+        }
+      ]
+    }
+  ];
+
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <View style={styles.mapContainer}>
         <MapView
           provider={PROVIDER_GOOGLE}
@@ -133,11 +339,12 @@ const LocationScreen = ({ route, navigation }) => {
           initialRegion={{
             latitude: userLocation?.latitude || 0,
             longitude: userLocation?.longitude || 0,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421
+            latitudeDelta: LATITUDE_DELTA,
+            longitudeDelta: LONGITUDE_DELTA,
           }}
           onPress={handleMapPress}
           showsUserLocation={true}
+          customMapStyle={mapStyle}
         >
           {userLocation && (
             <Marker
@@ -146,50 +353,84 @@ const LocationScreen = ({ route, navigation }) => {
                 longitude: userLocation.longitude
               }}
               description={address || 'Selected Location'}
-            />
+            >
+              <View style={styles.markerContainer}>
+                <LinearGradient
+                  colors={['#FF6347', '#FF8C00']}
+                  style={styles.markerIcon}
+                >
+                  <Ionicons name="location" size={24} color="#FFF" />
+                </LinearGradient>
+                <View style={styles.markerTail} />
+              </View>
+            </Marker>
           )}
         </MapView>
       </View>
 
-      <View style={styles.formWrapper}>
+      <Animated.View 
+        style={[
+          styles.formWrapper,
+          { transform: [{ translateY: slideAnimation }] }
+        ]}
+      >
         {!showAddressForm ? (
           <View style={styles.locationConfirmation}>
             <Text style={styles.locationTitle}>Select your location</Text>
             <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmLocation}>
-              <Text style={styles.confirmButtonText}>Confirm Location</Text>
+              <LinearGradient
+                colors={['#FF6347', '#FF8C00']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.gradientButton}
+              >
+                <Text style={styles.confirmButtonText}>Confirm Location</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.addressForm}>
+          <ScrollView style={styles.addressForm}>
             <Text style={styles.formTitle}>Enter address details</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="House no. / Flat no / Building"
-              value={houseNumber}
-              onChangeText={setHouseNumber}
-              placeholderTextColor="#666"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Address"
-              value={address}
-              onChangeText={setAddress}
-              placeholderTextColor="#666"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Floor (optional)"
-              value={floor}
-              onChangeText={setFloor}
-              placeholderTextColor="#666"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="How to reach (optional)"
-              value={howToReach}
-              onChangeText={setHowToReach}
-              placeholderTextColor="#666"
-            />
+            <View style={styles.inputContainer}>
+              <MaterialIcons name="location-on" size={24} color="#FF6347" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Address"
+                value={address}
+                onChangeText={setAddress}
+                placeholderTextColor="#666"
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <MaterialIcons name="home" size={24} color="#FF6347" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="House no. / Flat no / Building"
+                value={houseNumber}
+                onChangeText={setHouseNumber}
+                placeholderTextColor="#666"
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <MaterialIcons name="layers" size={24} color="#FF6347" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Floor (optional)"
+                value={floor}
+                onChangeText={setFloor}
+                placeholderTextColor="#666"
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <MaterialIcons name="directions" size={24} color="#FF6347" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="How to reach (optional)"
+                value={howToReach}
+                onChangeText={setHowToReach}
+                placeholderTextColor="#666"
+              />
+            </View>
             <Text style={styles.tagText}>Tags</Text>
             <View style={styles.tagContainer}>
               {['Home', 'Work', 'Office', 'Other'].map((type) => (
@@ -205,14 +446,22 @@ const LocationScreen = ({ route, navigation }) => {
               ))}
             </View>
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveAddress}>
-              <Text style={styles.saveButtonText}>Save</Text>
+              <LinearGradient
+                colors={['#FF6347', '#FF8C00']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.gradientButton}
+              >
+                <Text style={styles.saveButtonText}>Save Address</Text>
+              </LinearGradient>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         )}
-      </View>
-    </ScrollView>
+      </Animated.View>
+    </KeyboardAvoidingView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -220,10 +469,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   mapContainer: {
-    height: 550,
+    height: height * 0.62,
   },
   map: {
     ...StyleSheet.absoluteFillObject,
+  },
+  markerContainer: {
+    alignItems: 'center',
+  },
+  markerIcon: {
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  markerTail: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#FF6347',
+    transform: [{ rotate: '180deg' }],
   },
   formWrapper: {
     flex: 1,
@@ -245,7 +522,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addressForm: {
-    alignItems: 'center',
+    flex: 1,
   },
   locationTitle: {
     fontSize: 24,
@@ -259,50 +536,67 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#333',
   },
-  input: {
-    width: '100%',
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    padding: 15,
     marginBottom: 15,
-    fontSize: 16,
     backgroundColor: '#F3F4F6',
+  },
+  inputIcon: {
+    padding: 10,
+  },
+  input: {
+    flex: 1,
+    padding: 15,
+    fontSize: 16,
   },
   tagText: {
     fontSize: 16,
     marginBottom: 10,
     color: '#333',
-    alignSelf: 'flex-start',
+    fontWeight: 'bold',
   },
   tagContainer: {
     flexDirection: 'row',
     marginBottom: 20,
     justifyContent: 'flex-start',
-    width: '100%',
+    flexWrap: 'wrap',
   },
   tagButton: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 10,
+    borderColor: '#FF6347',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     marginRight: 10,
+    marginBottom: 10,
     backgroundColor: '#fff',
   },
   activeTagButton: {
-    backgroundColor: '#000',
+    backgroundColor: '#FF6347',
   },
   tagButtonText: {
-    fontSize: 16,
-    color: '#000',
+    fontSize: 14,
+    color: '#FF6347',
   },
   activeTagButtonText: {
     color: '#fff',
   },
   confirmButton: {
     width: '100%',
-    backgroundColor: '#000',
     borderRadius: 8,
+    overflow: 'hidden',
+  },
+  saveButton: {
+    width: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginTop: 20,
+  },
+  gradientButton: {
     padding: 15,
     alignItems: 'center',
   },
@@ -311,18 +605,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  saveButton: {
-    width: '100%',
-    backgroundColor: '#000',
-    borderRadius: 8,
-    padding: 15,
-    alignItems: 'center',
-  },
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
 });
+
 
 export default LocationScreen;

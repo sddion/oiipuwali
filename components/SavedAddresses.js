@@ -1,14 +1,28 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, StatusBar } from 'react-native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useSelector, useDispatch } from 'react-redux';
+import { setSavedAddresses } from '../redux/UserReducer';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const AddressItem = ({ address, onEdit, onDelete }) => {
   return (
     <View style={styles.addressItem}>
       <View style={styles.addressInfo}>
-        <Ionicons name={address.location_type === 'Home' ? 'home-outline' : 'business-outline'} size={24} color="#000" />
+        <LinearGradient
+          colors={['#FF6347', '#FF8C00']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.iconContainer}
+        >
+          <Ionicons 
+            name={address.location_type === 'Home' ? 'home' : 'business'} 
+            size={24} 
+            color="#FFF" 
+          />
+        </LinearGradient>
         <View style={styles.addressTextContainer}>
           <Text style={styles.addressType}>{address.location_type}</Text>
           <Text style={styles.addressText}>{address.address}</Text>
@@ -16,10 +30,10 @@ const AddressItem = ({ address, onEdit, onDelete }) => {
       </View>
       <View style={styles.addressActions}>
         <TouchableOpacity onPress={() => onEdit(address)} style={styles.actionButton}>
-          <Ionicons name="create-outline" size={24} color="#000" />
+          <MaterialIcons name="edit" size={22} color="#FF6347" />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => onDelete(address)} style={styles.actionButton}>
-          <Ionicons name="trash-outline" size={24} color="#f00" />
+          <MaterialIcons name="delete" size={22} color="#E23946" />
         </TouchableOpacity>
       </View>
     </View>
@@ -27,7 +41,8 @@ const AddressItem = ({ address, onEdit, onDelete }) => {
 };
 
 const SavedAddressesScreen = () => {
-  const [savedAddresses, setSavedAddresses] = useState([]);
+  const dispatch = useDispatch();
+  const savedAddresses = useSelector(state => state.user.savedAddresses);
   const [isLoading, setIsLoading] = useState(true);
   const navigation = useNavigation();
 
@@ -43,7 +58,8 @@ const SavedAddressesScreen = () => {
           .single();
 
         if (error) throw error;
-        setSavedAddresses(data.saved_addresses || []);
+        const addresses = data.saved_addresses || [];
+        dispatch(setSavedAddresses(addresses));
       }
     } catch (error) {
       console.error('Error fetching saved addresses:', error);
@@ -51,7 +67,7 @@ const SavedAddressesScreen = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [dispatch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,7 +98,7 @@ const SavedAddressesScreen = () => {
                   .eq('id', user.id);
 
                 if (error) throw error;
-                setSavedAddresses(updatedAddresses);
+                dispatch(setSavedAddresses(updatedAddresses));
                 Alert.alert('Success', 'Address deleted successfully');
               }
             } catch (error) {
@@ -107,13 +123,22 @@ const SavedAddressesScreen = () => {
   if (isLoading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#000" />
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={['#FF6347', '#FF8C00']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
+        <Text style={styles.title}>Saved Addresses</Text>
+      </LinearGradient>
       <FlatList
         data={savedAddresses}
         renderItem={({ item }) => (
@@ -124,18 +149,27 @@ const SavedAddressesScreen = () => {
           />
         )}
         keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={
-          <Text style={styles.title}>Saved Addresses</Text>
-        }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No saved addresses. Add a new address to get started.</Text>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="location-outline" size={64} color="#CCCCCC" />
+            <Text style={styles.emptyText}>No saved addresses</Text>
+            <Text style={styles.emptySubtext}>Add a new address to get started</Text>
+          </View>
         }
         refreshing={isLoading}
         onRefresh={fetchSavedAddresses}
+        contentContainerStyle={styles.listContent}
       />
       <TouchableOpacity style={styles.addButton} onPress={handleAddNewAddress}>
-        <Ionicons name="add-circle-outline" size={24} color="#fff" />
-        <Text style={styles.addButtonText}>Add New Address</Text>
+        <LinearGradient
+          colors={['#4CAF50', '#45a049']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.addButtonGradient}
+        >
+          <Ionicons name="add" size={24} color="#FFF" />
+          <Text style={styles.addButtonText}>Add New Address</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
@@ -144,35 +178,52 @@ const SavedAddressesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f8f8',
+  },
+  header: {
     padding: 20,
+    paddingTop: 40,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
+    color: '#FFF',
   },
   addressItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
+    backgroundColor: '#FFF',
+    borderRadius: 15,
+    padding: 16,
+    marginBottom: 16,
+    marginHorizontal: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   addressInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  iconContainer: {
+    borderRadius: 12,
+    padding: 10,
+    marginRight: 12,
+  },
   addressTextContainer: {
-    marginLeft: 10,
     flex: 1,
   },
   addressType: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
   },
   addressText: {
     fontSize: 14,
@@ -182,33 +233,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   actionButton: {
-    padding: 5,
-    marginLeft: 10,
+    padding: 8,
+    marginLeft: 8,
   },
   addButton: {
+    margin: 20,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  addButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000',
-    borderRadius: 8,
-    padding: 15,
-    marginTop: 20,
+    padding: 16,
   },
   addButtonText: {
-    color: '#fff',
+    color: '#FFF',
     fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 10,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
   emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 16,
-    marginTop: 20,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginTop: 16,
   },
-  centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
+  emptySubtext: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+  },
+  listContent: {
+    flexGrow: 1,
+    paddingTop: 20,
   },
 });
 
