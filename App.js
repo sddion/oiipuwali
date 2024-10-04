@@ -12,7 +12,6 @@ import RestaurantScreen from "./screens/RestaurantScreen";
 import LocationScreen from "./screens/LocationScreen";
 import LoginScreen from "./screens/LoginScreen";
 import CartScreen from "./screens/CartScreen";
-import DeliveryTrackingScreen from "./screens/deliveryTrackingScreen";
 import CategoryItemsScreen from './screens/CategoryItemsScreen';
 import CheckoutScreen from "./screens/CheckoutScreen";
 import Users from "./components/Users";
@@ -48,9 +47,9 @@ function AppContent() {
   }, []);
 
   return (
-    <Stack.Navigator initialRouteName={session ? "Home" : "LoginScreen"}>
+    <Stack.Navigator initialRouteName={session ? "Home" : "Login"}>
       <Stack.Screen
-        name="LoginScreen"
+        name="Login"
         component={LoginScreen}
         options={{ headerShown: false }}
       />
@@ -137,21 +136,6 @@ function AppContent() {
         component={SavedAddresses}
         options={{
           title: "Saved Addresses",
-          headerStyle: {
-            backgroundColor: "#F4F6FB",
-          },
-          headerTitleStyle: {
-            fontWeight: "bold",
-          },
-          headerShadowVisible: false,
-        }}
-      />
-      <Stack.Screen
-        name="DeliveryTracking"
-        component={DeliveryTrackingScreen}
-        options={{
-          title: "",
-          headerShown: false,
           headerStyle: {
             backgroundColor: "#F4F6FB",
           },

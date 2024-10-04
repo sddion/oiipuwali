@@ -1,16 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  TextInput,
-  Pressable,
-  Alert,
-  ImageBackground,
-  Platform,
-} from 'react-native';
+import {StyleSheet,Text,View,SafeAreaView,KeyboardAvoidingView,TextInput,Pressable,Alert,ImageBackground,Platform,} from 'react-native';
 import { supabase } from '../supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PhoneInput from 'react-native-phone-number-input';

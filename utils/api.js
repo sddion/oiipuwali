@@ -17,24 +17,6 @@ const handleApiError = (error, customMessage) => {
   }
 };
 
-export const fetchLocations = async (userId, restaurantId) => {
-  try {
-    const response = await api.get(`/locations?userId=${userId}&restaurantId=${restaurantId}`);
-    return response.data;
-  } catch (error) {
-    handleApiError(error, 'Error fetching locations:');
-  }
-};
-
-export const calculateDeliveryCost = async (userId, restaurantId) => {
-  try {
-    const response = await api.post('/delivery-cost', { userId, restaurantId });
-    return response.data;
-  } catch (error) {
-    handleApiError(error, 'Error calculating delivery cost:');
-  }
-};
-
 export const createOrder = async (orderData) => {
   try {
     const response = await api.post('/create-order', orderData);

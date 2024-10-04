@@ -170,8 +170,8 @@ const styles = StyleSheet.create({
   },
   searchBarContainer: {
     paddingHorizontal: 15,
-    paddingTop: 20, // Add some top padding to move the search bar down
-    paddingBottom: 10, // Add some bottom padding for spacing
+    paddingTop: 20, 
+    paddingBottom: 10, 
   },
   bannerContainer: {
     width: width,

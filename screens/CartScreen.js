@@ -46,24 +46,24 @@ const CartScreen = ({ route }) => {
       if (user.id && restaurantId) {
         try {
           console.log('Fetching locations...');
-  
+
           const locationsData = await fetchLocations(user.id, restaurantId);
           console.log('Locations data:', locationsData);
-  
+
           setUserLocation(locationsData.userLocation);
           setRestaurantLocation(locationsData.restaurantLocation);
-  
+
           // Calculate distance
           const calculatedDistance = calculateDistance(
             locationsData.userLocation,
             locationsData.restaurantLocation
           );
           setDistance(calculatedDistance);
-  
+
           // Use the initial delivery cost if available, otherwise calculate
           const cost = initialDeliveryCost || calculateDeliveryCost(calculatedDistance);
           setDeliveryCost(cost);
-  
+
           console.log('Delivery cost:', cost);
           console.log('Distance:', calculatedDistance);
         } catch (error) {
@@ -73,7 +73,7 @@ const CartScreen = ({ route }) => {
         }
       }
     };
-  
+
     getLocationsAndDeliveryCost();
   }, [user.id, restaurantId, initialDeliveryCost]);
 
@@ -205,18 +205,18 @@ const CartScreen = ({ route }) => {
         </TouchableOpacity>
 
         <View style={styles.couponSection}>
-          <TouchableOpacity 
-            style={styles.couponHeader} 
+          <TouchableOpacity
+            style={styles.couponHeader}
             onPress={() => setIsCouponExpanded(!isCouponExpanded)}
           >
             <FontAwesome name="ticket" size={20} color="#FF6347" />
             <Text style={styles.couponHeaderText}>
               {coupon ? `Applied: ${coupon}` : 'APPLY COUPON'}
             </Text>
-            <Ionicons 
-              name={isCouponExpanded ? "chevron-up" : "chevron-down"} 
-              size={24} 
-              color="#FF6347" 
+            <Ionicons
+              name={isCouponExpanded ? "chevron-up" : "chevron-down"}
+              size={24}
+              color="#FF6347"
             />
           </TouchableOpacity>
           {isCouponExpanded && (
@@ -228,8 +228,8 @@ const CartScreen = ({ route }) => {
                 placeholder="Enter coupon code"
                 placeholderTextColor="#666"
               />
-              <TouchableOpacity 
-                style={styles.applyCouponButton} 
+              <TouchableOpacity
+                style={styles.applyCouponButton}
                 onPress={handleApplyCoupon}
               >
                 <Text style={styles.applyCouponButtonText}>Apply</Text>
@@ -240,8 +240,8 @@ const CartScreen = ({ route }) => {
             <Text style={styles.couponErrorText}>{couponError}</Text>
           )}
           {coupon && (
-            <TouchableOpacity 
-              style={styles.removeCouponButton} 
+            <TouchableOpacity
+              style={styles.removeCouponButton}
               onPress={handleRemoveCoupon}
             >
               <Text style={styles.removeCouponButtonText}>Remove Coupon</Text>
@@ -270,13 +270,13 @@ const CartScreen = ({ route }) => {
             <Text style={styles.billItemValue}>₹{subtotal.toFixed(2)}</Text>
           </View>
           <View style={styles.billItem}>
-  <Text style={styles.billItemText}>
-    Delivery Fee {distance > 0 ? `| ${distance.toFixed(2)} km` : ''}
-  </Text>
-  <Text style={styles.billItemValue}>
-    {deliveryCost > 0 ? `₹${deliveryCost.toFixed(2)}` : ''}
-  </Text>
-</View>
+            <Text style={styles.billItemText}>
+              Delivery Fee {distance > 0 ? `| ${distance.toFixed(2)} km` : ''}
+            </Text>
+            <Text style={styles.billItemValue}>
+              {deliveryCost > 0 ? `₹${deliveryCost.toFixed(2)}` : ''}
+            </Text>
+          </View>
           <View style={styles.billItem}>
             <Text style={styles.billItemText}>Platform fee</Text>
             <Text style={styles.billItemValue}>₹{platformFee.toFixed(2)}</Text>

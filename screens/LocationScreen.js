@@ -1,17 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  Keyboard,
-  Animated,
+import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, Alert, Dimensions, KeyboardAvoidingView, Platform, Keyboard, Animated,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { supabase } from '../supabase';
@@ -38,7 +26,6 @@ const LocationScreen = ({ route, navigation }) => {
   const [locationType, setLocationType] = useState(editAddress?.location_type || 'Home');
   const [loading, setLoading] = useState(true);
   const dispatch = useDispatch();
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const slideAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -100,6 +87,18 @@ const LocationScreen = ({ route, navigation }) => {
   const handleConfirmLocation = () => {
     setShowAddressForm(true);
   };
+
+    /**
+   * This function handles the process of saving or updating a user's address.
+   * It first constructs a new address object with the provided details.
+   * Then, it retrieves the user's saved addresses from the database.
+   * If the user is editing an existing address, it updates the address in the saved addresses array.
+   * If the user is adding a new address, it checks if the user has reached the limit of 3 saved addresses.
+   * If the limit is reached, it shows an alert and stops the process.
+   * Otherwise, it adds the new address to the saved addresses array and dispatches an action to update the state.
+   * Finally, it updates the user's saved addresses in the database and shows a success alert.
+   * If any error occurs during the process, it catches the error, logs it, and shows an error alert.
+   */
 
   const handleSaveAddress = async () => {
     if (!address || !houseNumber) {
@@ -165,6 +164,7 @@ const LocationScreen = ({ route, navigation }) => {
       Alert.alert('Error', 'There was an issue saving your address. Please try again.');
     }
   };
+
 
   const mapStyle = [
     {
